@@ -24,6 +24,10 @@ app.post("/carrier_service", async (req, res) => {
 
         const deliveryAddress = `${dest.address1} ${dest.city} ${dest.province} ${dest.postal_code}`
 
+        if (dest.postal_code == "10016") {
+            return res.json({ rates: [] });
+        }
+
         const controller = new AbortController();
         const t = setTimeout(() => controller.abort(), 8000);
 
