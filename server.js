@@ -257,20 +257,20 @@ app.post(
       createdDeliveriesByOrderId.set(orderId, { deliveryId, trackingUrl });
 
       // Create a Shopify Fulfillment WITH tracking
-      try {
-        await createShopifyFulfillment({
-          shop: req.get("X-Shopify-Shop-Domain"),
-          token: process.env.SHOPIFY_ADMIN_TOKEN,
-          orderId,
-          trackingNumber: String(deliveryId || orderId),
-          trackingUrl: trackingUrl || "https://metrobi.com/track",
-          trackingCompany: "Metrobi Courier",
-          notifyCustomer: true,
-        });
-      } catch (e) {
-        console.error("Fulfillment create failed", e);
-        // Do not fail the webhook; the Metrobi job is already created.
-      }
+      // try {
+      //   await createShopifyFulfillment({
+      //     shop: req.get("X-Shopify-Shop-Domain"),
+      //     token: process.env.SHOPIFY_ADMIN_TOKEN,
+      //     orderId,
+      //     trackingNumber: String(deliveryId || orderId),
+      //     trackingUrl: trackingUrl || "https://metrobi.com/track",
+      //     trackingCompany: "Metrobi Courier",
+      //     notifyCustomer: true,
+      //   });
+      // } catch (e) {
+      //   console.error("Fulfillment create failed", e);
+      //   // Do not fail the webhook; the Metrobi job is already created.
+      // }
 
       return res.sendStatus(200);
     } catch (e) {
