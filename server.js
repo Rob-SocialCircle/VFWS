@@ -145,7 +145,7 @@ app.post("/carrier_service", async (req, res) => {
 })
 
 app.post(
-  "/webhooks/orders-paid",
+  "/webhooks/orders_create",
   express.raw({ type: "application/json" }),
   async (req, res) => {
     if (!verifyShopifyWebhook(req)) return res.sendStatus(401);
