@@ -6,17 +6,25 @@ import crypto from "crypto";
 dotenv.config();
 const app = express();
 
-app.use(express.json());
+app.use((req, res, next) => {
+  if (req.originalUrl.startsWith("/webhooks")) {
+    next();
+  }
+  else {
+    express.json()(req, res, next);
+  }
+});
 
 function verifyShopifyWebhook(req) {
   try {
     const hmacHeader = req.get("X-Shopify-Hmac-Sha256");
     const secret = process.env.SHOPIFY_API_SECRET; 
+    const body = Buffer.isBuffer(req.body) ? req.body : Buffer.from(JSON.stringify(req.body))
 
-    // Use the raw Buffer body, not parsed JSON
+    
     const digest = crypto
       .createHmac("sha256", secret)
-      .update(req.body, "utf8")   // req.body is Buffer thanks to express.raw()
+      .update(body, "utf8")   
       .digest("base64");
 
     return crypto.timingSafeEqual(
