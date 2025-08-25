@@ -9,18 +9,25 @@ const app = express();
 app.use(express.json());
 
 function verifyShopifyWebhook(req) {
-  const hmacHeader = req.get("X-Shopify-Hmac-SHA256") || "";
-  const digest = crypto
-    .createHmac("sha256", process.env.SHOPIFY_WEBHOOK_SECRET)
-    .update(req.body) 
-    .digest("base64");
-  
-  return (
-    hmacHeader.length === digest.length &&
-    crypto.timingSafeEqual(Buffer.from(hmacHeader), Buffer.from(digest))
-  );
-}
+  try {
+    const hmacHeader = req.get("X-Shopify-Hmac-Sha256");
+    const secret = process.env.SHOPIFY_API_SECRET; 
 
+    // Use the raw Buffer body, not parsed JSON
+    const digest = crypto
+      .createHmac("sha256", secret)
+      .update(req.body, "utf8")   // req.body is Buffer thanks to express.raw()
+      .digest("base64");
+
+    return crypto.timingSafeEqual(
+      Buffer.from(digest, "utf8"),
+      Buffer.from(hmacHeader, "utf8")
+    );
+  } catch (err) {
+    console.error("HMAC verification error:", err);
+    return false;
+  }
+}
 const createdDeliveriesByOrderId = new Map();
 
 app.post("/carrier_service", async (req, res) => {
@@ -149,32 +156,40 @@ app.post(
   express.raw({ type: "application/json" }),
   async (req, res) => {
     if (!verifyShopifyWebhook(req)) return res.sendStatus(401);
-    const order = JSON.parse(req.body.toString("utf8"));
+
+    let order;
+    try {
+      order = JSON.parse(req.body.toString("utf8")); 
+    } catch (e) {
+      console.error("Failed to parse order JSON:", e);
+      return res.sendStatus(400);
+    }
 
     try {
-      //Only act if the buyer chose Metrobi at checkout
-      const usedMetrobi = Array.isArray(order.shipping_lines) &&
-        order.shipping_lines.some(sl =>
-          (sl.title || "").toLowerCase().includes("metrobi") ||
-          (sl.code || "").toUpperCase() === "METROBI"
+      // Only act if the buyer chose Metrobi at checkout
+      const usedMetrobi =
+        Array.isArray(order.shipping_lines) &&
+        order.shipping_lines.some(
+          (sl) =>
+            (sl.title || "").toLowerCase().includes("metrobi") ||
+            (sl.code || "").toUpperCase() === "METROBI"
         );
 
       if (!usedMetrobi) return res.sendStatus(200);
 
       const orderId = order.id;
 
-      //if we've already created a Metrobi job for this order, do nothing.
+      // If we've already created a Metrobi job for this order, do nothing.
       if (createdDeliveriesByOrderId.has(orderId)) return res.sendStatus(200);
 
-      // Build Metrobi create-delivery payload
       const pickupAddress =
-        process.env.PICKUP_ADDRESS ||
-        "184 Lexington Ave New York NY 10016";
+        process.env.PICKUP_ADDRESS || "184 Lexington Ave New York NY 10016";
 
       const sa = order.shipping_address || {};
-      const dropoffAddress = `${sa.address1 || ""} ${sa.city || ""} ${sa.province || ""} ${sa.zip || ""}`.trim();
+      const dropoffAddress = `${sa.address1 || ""} ${sa.city || ""} ${
+        sa.province || ""
+      } ${sa.zip || ""}`.trim();
 
-      // Optional: windowing; here we aim for same-day with a 3-hour window starting now.
       const now = new Date();
       const threeHoursLater = new Date(now.getTime() + 3 * 60 * 60 * 1000);
 
@@ -182,17 +197,26 @@ app.post(
         size: "suv",
         pickup_stop: {
           address: pickupAddress,
-          contact_name: order.shipping_address?.name || order.customer?.first_name || "Store",
-          contact_phone: order.shipping_address?.phone || order.customer?.phone || order.contact_email,
-          notes: `Order #${order.name} (${order.id})`
+          contact_name:
+            order.shipping_address?.name ||
+            order.customer?.first_name ||
+            "Store",
+          contact_phone:
+            order.shipping_address?.phone ||
+            order.customer?.phone ||
+            order.contact_email,
+          notes: `Order #${order.name} (${order.id})`,
         },
         dropoff_stop: {
           address: dropoffAddress,
           contact_name: order.shipping_address?.name,
-          contact_phone: order.shipping_address?.phone || order.customer?.phone || order.contact_email,
-          notes: order.note || "Deliver Shopify order"
+          contact_phone:
+            order.shipping_address?.phone ||
+            order.customer?.phone ||
+            order.contact_email,
+          notes: order.note || "Deliver Shopify order",
         },
-       
+
         pickup_start_time: now.toISOString(),
         pickup_end_time: threeHoursLater.toISOString(),
         reference: `shopify:${order.id}`,
@@ -205,12 +229,12 @@ app.post(
       const metrobiResp = await fetch(process.env.METROBI_CREATE_URL, {
         method: "POST",
         headers: {
-          "accept": "application/json",
+          accept: "application/json",
           "x-api-key": process.env.METROBI_API_KEY,
-          "content-type": "application/json"
+          "content-type": "application/json",
         },
         body: JSON.stringify(metrobiPayload),
-        signal: controller.signal
+        signal: controller.signal,
       });
 
       clearTimeout(timeout);
@@ -222,31 +246,35 @@ app.post(
 
       const metrobiData = await metrobiResp.json();
 
-      
-      const deliveryId = metrobiData.id || metrobiData.delivery_id || metrobiData.response?.data?.id;
-      const trackingUrl = metrobiData.tracking_url || metrobiData.response?.data?.tracking_url;
+      const deliveryId =
+        metrobiData.id ||
+        metrobiData.delivery_id ||
+        metrobiData.response?.data?.id;
+      const trackingUrl =
+        metrobiData.tracking_url ||
+        metrobiData.response?.data?.tracking_url;
 
       createdDeliveriesByOrderId.set(orderId, { deliveryId, trackingUrl });
 
-      //Create a Shopify Fulfillment WITH tracking so customers see progress
-      //try {
-      //  await createShopifyFulfillment({
-      //    shop: req.get("X-Shopify-Shop-Domain"),
-      //    token: process.env.SHOPIFY_ADMIN_TOKEN,
-      //   orderId,
-      //    trackingNumber: String(deliveryId || orderId),
-      //    trackingUrl: trackingUrl || "https://metrobi.com/track",
-      //    trackingCompany: "Metrobi Courier",
-      //    notifyCustomer: true
-      //  });
-      //} catch (e) {
-      //  console.error("Fulfillment create failed", e);
+      // Create a Shopify Fulfillment WITH tracking
+      try {
+        await createShopifyFulfillment({
+          shop: req.get("X-Shopify-Shop-Domain"),
+          token: process.env.SHOPIFY_ADMIN_TOKEN,
+          orderId,
+          trackingNumber: String(deliveryId || orderId),
+          trackingUrl: trackingUrl || "https://metrobi.com/track",
+          trackingCompany: "Metrobi Courier",
+          notifyCustomer: true,
+        });
+      } catch (e) {
+        console.error("Fulfillment create failed", e);
         // Do not fail the webhook; the Metrobi job is already created.
-      //}
+      }
 
       return res.sendStatus(200);
     } catch (e) {
-      console.error("orders-paid handler error", e);
+      console.error("orders_create handler error", e);
       return res.sendStatus(500);
     }
   }
