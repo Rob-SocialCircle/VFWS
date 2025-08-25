@@ -144,118 +144,113 @@ app.post("/carrier_service", async (req, res) => {
     }
 })
 
-app.post("/webhooks/orders_create", (req, res) => {
-  console.log("Webhook hit! Order payload:", req.body);
-  res.status(200).send("OK");
-});
+app.post(
+  "/webhooks/orders_create",
+  express.raw({ type: "application/json" }),
+  async (req, res) => {
+    if (!verifyShopifyWebhook(req)) return res.sendStatus(401);
+    const order = JSON.parse(req.body.toString("utf8"));
 
-// app.post(
-//   "/webhooks/orders_create",
-//   express.raw({ type: "application/json" }),
-//   async (req, res) => {
-//     if (!verifyShopifyWebhook(req)) return res.sendStatus(401);
-//     const order = JSON.parse(req.body.toString("utf8"));
+    try {
+      //Only act if the buyer chose Metrobi at checkout
+      const usedMetrobi = Array.isArray(order.shipping_lines) &&
+        order.shipping_lines.some(sl =>
+          (sl.title || "").toLowerCase().includes("metrobi") ||
+          (sl.code || "").toUpperCase() === "METROBI"
+        );
 
-//     try {
-//       //Only act if the buyer chose Metrobi at checkout
-//       const usedMetrobi = Array.isArray(order.shipping_lines) &&
-//         order.shipping_lines.some(sl =>
-//           (sl.title || "").toLowerCase().includes("metrobi") ||
-//           (sl.code || "").toUpperCase() === "METROBI"
-//         );
+      if (!usedMetrobi) return res.sendStatus(200);
 
-//       if (!usedMetrobi) return res.sendStatus(200);
+      const orderId = order.id;
 
-//       const orderId = order.id;
+      //if we've already created a Metrobi job for this order, do nothing.
+      if (createdDeliveriesByOrderId.has(orderId)) return res.sendStatus(200);
 
-//       //if we've already created a Metrobi job for this order, do nothing.
-//       if (createdDeliveriesByOrderId.has(orderId)) return res.sendStatus(200);
+      // Build Metrobi create-delivery payload
+      const pickupAddress =
+        process.env.PICKUP_ADDRESS ||
+        "184 Lexington Ave New York NY 10016";
 
-//       // Build Metrobi create-delivery payload
-//       const pickupAddress =
-//         process.env.PICKUP_ADDRESS ||
-//         "184 Lexington Ave New York NY 10016";
+      const sa = order.shipping_address || {};
+      const dropoffAddress = `${sa.address1 || ""} ${sa.city || ""} ${sa.province || ""} ${sa.zip || ""}`.trim();
 
-//       const sa = order.shipping_address || {};
-//       const dropoffAddress = `${sa.address1 || ""} ${sa.city || ""} ${sa.province || ""} ${sa.zip || ""}`.trim();
+      // Optional: windowing; here we aim for same-day with a 3-hour window starting now.
+      const now = new Date();
+      const threeHoursLater = new Date(now.getTime() + 3 * 60 * 60 * 1000);
 
-//       // Optional: windowing; here we aim for same-day with a 3-hour window starting now.
-//       const now = new Date();
-//       const threeHoursLater = new Date(now.getTime() + 3 * 60 * 60 * 1000);
-
-//       const metrobiPayload = {
-//         size: "suv",
-//         pickup_stop: {
-//           address: pickupAddress,
-//           contact_name: order.shipping_address?.name || order.customer?.first_name || "Store",
-//           contact_phone: order.shipping_address?.phone || order.customer?.phone || order.contact_email,
-//           notes: `Order #${order.name} (${order.id})`
-//         },
-//         dropoff_stop: {
-//           address: dropoffAddress,
-//           contact_name: order.shipping_address?.name,
-//           contact_phone: order.shipping_address?.phone || order.customer?.phone || order.contact_email,
-//           notes: order.note || "Deliver Shopify order"
-//         },
+      const metrobiPayload = {
+        size: "suv",
+        pickup_stop: {
+          address: pickupAddress,
+          contact_name: order.shipping_address?.name || order.customer?.first_name || "Store",
+          contact_phone: order.shipping_address?.phone || order.customer?.phone || order.contact_email,
+          notes: `Order #${order.name} (${order.id})`
+        },
+        dropoff_stop: {
+          address: dropoffAddress,
+          contact_name: order.shipping_address?.name,
+          contact_phone: order.shipping_address?.phone || order.customer?.phone || order.contact_email,
+          notes: order.note || "Deliver Shopify order"
+        },
        
-//         pickup_start_time: now.toISOString(),
-//         pickup_end_time: threeHoursLater.toISOString(),
-//         reference: `shopify:${order.id}`,
-//       };
+        pickup_start_time: now.toISOString(),
+        pickup_end_time: threeHoursLater.toISOString(),
+        reference: `shopify:${order.id}`,
+      };
 
-//       // Create delivery with Metrobi
-//       const controller = new AbortController();
-//       const timeout = setTimeout(() => controller.abort(), 8000);
+      // Create delivery with Metrobi
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8000);
 
-//       const metrobiResp = await fetch(process.env.METROBI_CREATE_URL, {
-//         method: "POST",
-//         headers: {
-//           "accept": "application/json",
-//           "x-api-key": process.env.METROBI_API_KEY,
-//           "content-type": "application/json"
-//         },
-//         body: JSON.stringify(metrobiPayload),
-//         signal: controller.signal
-//       });
+      const metrobiResp = await fetch(process.env.METROBI_CREATE_URL, {
+        method: "POST",
+        headers: {
+          "accept": "application/json",
+          "x-api-key": process.env.METROBI_API_KEY,
+          "content-type": "application/json"
+        },
+        body: JSON.stringify(metrobiPayload),
+        signal: controller.signal
+      });
 
-//       clearTimeout(timeout);
+      clearTimeout(timeout);
 
-//       if (!metrobiResp.ok) {
-//         console.error("Metrobi create failed", await metrobiResp.text());
-//         return res.sendStatus(500);
-//       }
+      if (!metrobiResp.ok) {
+        console.error("Metrobi create failed", await metrobiResp.text());
+        return res.sendStatus(500);
+      }
 
-//       const metrobiData = await metrobiResp.json();
+      const metrobiData = await metrobiResp.json();
 
       
-//       const deliveryId = metrobiData.id || metrobiData.delivery_id || metrobiData.response?.data?.id;
-//       const trackingUrl = metrobiData.tracking_url || metrobiData.response?.data?.tracking_url;
+      const deliveryId = metrobiData.id || metrobiData.delivery_id || metrobiData.response?.data?.id;
+      const trackingUrl = metrobiData.tracking_url || metrobiData.response?.data?.tracking_url;
 
-//       createdDeliveriesByOrderId.set(orderId, { deliveryId, trackingUrl });
+      createdDeliveriesByOrderId.set(orderId, { deliveryId, trackingUrl });
 
-//       //Create a Shopify Fulfillment WITH tracking so customers see progress
-//       //try {
-//       //  await createShopifyFulfillment({
-//       //    shop: req.get("X-Shopify-Shop-Domain"),
-//       //    token: process.env.SHOPIFY_ADMIN_TOKEN,
-//       //   orderId,
-//       //    trackingNumber: String(deliveryId || orderId),
-//       //    trackingUrl: trackingUrl || "https://metrobi.com/track",
-//       //    trackingCompany: "Metrobi Courier",
-//       //    notifyCustomer: true
-//       //  });
-//       //} catch (e) {
-//       //  console.error("Fulfillment create failed", e);
-//         // Do not fail the webhook; the Metrobi job is already created.
-//       //}
+      //Create a Shopify Fulfillment WITH tracking so customers see progress
+      //try {
+      //  await createShopifyFulfillment({
+      //    shop: req.get("X-Shopify-Shop-Domain"),
+      //    token: process.env.SHOPIFY_ADMIN_TOKEN,
+      //   orderId,
+      //    trackingNumber: String(deliveryId || orderId),
+      //    trackingUrl: trackingUrl || "https://metrobi.com/track",
+      //    trackingCompany: "Metrobi Courier",
+      //    notifyCustomer: true
+      //  });
+      //} catch (e) {
+      //  console.error("Fulfillment create failed", e);
+        // Do not fail the webhook; the Metrobi job is already created.
+      //}
 
-//       return res.sendStatus(200);
-//     } catch (e) {
-//       console.error("orders-paid handler error", e);
-//       return res.sendStatus(500);
-//     }
-//   }
-// );
+      return res.sendStatus(200);
+    } catch (e) {
+      console.error("orders-paid handler error", e);
+      return res.sendStatus(500);
+    }
+  }
+);
 
 
 app.listen(process.env.PORT, () => {
