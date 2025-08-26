@@ -234,11 +234,11 @@ app.post(
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 8000);
 
-      const metrobiResp = await fetch(process.env.METROBI_CREATE_URL, {
+      const metrobiResp = await fetch(process.env.METROBI_TEST_CREATE_URL, {
         method: "POST",
         headers: {
           accept: "application/json",
-          "x-api-key": process.env.METROBI_API_KEY,
+          "x-api-key": process.env.METROBI_TEST_API_KEY,
           "content-type": "application/json",
         },
         body: JSON.stringify(metrobiPayload),
