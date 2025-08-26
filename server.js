@@ -18,13 +18,13 @@ app.use((req, res, next) => {
 function verifyShopifyWebhook(req) {
   try {
     const hmacHeader = req.get("X-Shopify-Hmac-Sha256");
-    const secret = process.env.SHOPIFY_API_SECRET; 
+    const secret = process.env.SHOPIFY_API_SECRET;
     const body = Buffer.isBuffer(req.body) ? req.body : Buffer.from(JSON.stringify(req.body))
 
-    
+
     const digest = crypto
       .createHmac("sha256", secret)
-      .update(body, "utf8")   
+      .update(body, "utf8")
       .digest("base64");
 
     return crypto.timingSafeEqual(
@@ -39,124 +39,124 @@ function verifyShopifyWebhook(req) {
 const createdDeliveriesByOrderId = new Map();
 
 app.post("/carrier_service", async (req, res) => {
-    try {
-        const { rate } = req.body;
-        if (!rate) return res.status(400).json({error: "Bad payload"});
-        const dest = rate.destination
-        const origin = rate.origin
+  try {
+    const { rate } = req.body;
+    if (!rate) return res.status(400).json({ error: "Bad payload" });
+    const dest = rate.destination
+    const origin = rate.origin
 
-        if (!dest || dest.country !== "US") {
-            return res.json({ rates: [] });
-        }
-
-        const pickupAddress = origin?.address1 
-        ? `${origin.address1} ${origin.city} ${origin.province} ${origin.postal_code}`
-        : "184 Lexington Ave New York NY 10016"
-
-        const deliveryAddress = `${dest.address1} ${dest.city} ${dest.province} ${dest.postal_code}`
-
-        if (dest.postal_code == "10016") {
-            return res.json({ rates: [] });
-        }
-
-        const controller = new AbortController();
-        const t = setTimeout(() => controller.abort(), 8000);
-
-        const metrobiResp = await fetch(
-            "https://delivery-api.metrobi.com/api/v1/deliveryrate",
-            {
-                method: "POST",
-                headers: {
-                    "accept": 'application/json',
-                    "x-api-key": `${process.env.METROBI_API_KEY}`,
-                    "content-type": "application/json"
-                },
-                body: JSON.stringify({
-                    size: 'suv',
-                    pickup_stop: {address: pickupAddress},
-                    dropoff_stop: {address: deliveryAddress},
-                }),
-                signal: controller.signal
-            }
-        );
-
-        clearTimeout(t);
-
-        if (!metrobiResp.ok) {
-            return res.json({
-                rates: [
-                  {
-                    service_name: "⚠️ Metrobi Delivery - Temporarily Unavailable",
-                    service_code: "METROBI_UNAVAILABLE",
-                    total_price: "999900", 
-                    currency: "USD",
-                    description: "Metrobi could not calculate delivery for this address"
-                  }
-                ]
-              });
-        }
-
-        
-
-        const metrobiData = await metrobiResp.json();
-
-        if (!metrobiData.success) {
-            return res.json({
-                rates: [
-                  {
-                    service_name: "⚠️ Metrobi Delivery - Temporarily Unavailable",
-                    service_code: "METROBI_UNAVAILABLE",
-                    total_price: "999900", 
-                    currency: "USD",
-                    description: "Metrobi could not calculate delivery for this address"
-                  }
-                ]
-              });
-        }
-
-        const estimatedCost = metrobiData.response.data.price
-
-        if (typeof estimatedCost !== "number"){
-            return res.json({
-                rates: [
-                  {
-                    service_name: "⚠️ Metrobi Delivery - Temporarily Unavailable",
-                    service_code: "METROBI_UNAVAILABLE",
-                    total_price: "999900", 
-                    currency: "USD",
-                    description: "Metrobi could not calculate delivery for this address"
-                  }
-                ]
-              });
-        }
-
-        return res.json({
-            rates: [
-                {
-                    service_name:"Metrobi Delivery",
-                    service_code: "METROBI",
-                    description: "Same-day local courier powered by Metrobi",
-                    total_price: Math.round(estimatedCost * 100).toString(),
-                    currency: "USD"
-                }
-            ]
-        });
-
-
-    } catch (error) {
-        console.error("Carrier service error:", error);
-        return res.json({
-            rates: [
-              {
-                service_name: "⚠️ Metrobi Delivery - Temporarily Unavailable",
-                service_code: "METROBI_UNAVAILABLE",
-                total_price: "999900", 
-                currency: "USD",
-                description: "Metrobi could not calculate delivery for this address"
-              }
-            ]
-          });
+    if (!dest || dest.country !== "US") {
+      return res.json({ rates: [] });
     }
+
+    const pickupAddress = origin?.address1
+      ? `${origin.address1} ${origin.city} ${origin.province} ${origin.postal_code}`
+      : "184 Lexington Ave New York NY 10016"
+
+    const deliveryAddress = `${dest.address1} ${dest.city} ${dest.province} ${dest.postal_code}`
+
+    if (dest.postal_code == "10016") {
+      return res.json({ rates: [] });
+    }
+
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), 8000);
+
+    const metrobiResp = await fetch(
+      "https://delivery-api.metrobi.com/api/v1/deliveryrate",
+      {
+        method: "POST",
+        headers: {
+          "accept": 'application/json',
+          "x-api-key": `${process.env.METROBI_API_KEY}`,
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({
+          size: 'suv',
+          pickup_stop: { address: pickupAddress },
+          dropoff_stop: { address: deliveryAddress },
+        }),
+        signal: controller.signal
+      }
+    );
+
+    clearTimeout(t);
+
+    if (!metrobiResp.ok) {
+      return res.json({
+        rates: [
+          {
+            service_name: "⚠️ Metrobi Delivery - Temporarily Unavailable",
+            service_code: "METROBI_UNAVAILABLE",
+            total_price: "999900",
+            currency: "USD",
+            description: "Metrobi could not calculate delivery for this address"
+          }
+        ]
+      });
+    }
+
+
+
+    const metrobiData = await metrobiResp.json();
+
+    if (!metrobiData.success) {
+      return res.json({
+        rates: [
+          {
+            service_name: "⚠️ Metrobi Delivery - Temporarily Unavailable",
+            service_code: "METROBI_UNAVAILABLE",
+            total_price: "999900",
+            currency: "USD",
+            description: "Metrobi could not calculate delivery for this address"
+          }
+        ]
+      });
+    }
+
+    const estimatedCost = metrobiData.response.data.price
+
+    if (typeof estimatedCost !== "number") {
+      return res.json({
+        rates: [
+          {
+            service_name: "⚠️ Metrobi Delivery - Temporarily Unavailable",
+            service_code: "METROBI_UNAVAILABLE",
+            total_price: "999900",
+            currency: "USD",
+            description: "Metrobi could not calculate delivery for this address"
+          }
+        ]
+      });
+    }
+
+    return res.json({
+      rates: [
+        {
+          service_name: "Metrobi Delivery",
+          service_code: "METROBI",
+          description: "Same-day local courier powered by Metrobi",
+          total_price: Math.round(estimatedCost * 100).toString(),
+          currency: "USD"
+        }
+      ]
+    });
+
+
+  } catch (error) {
+    console.error("Carrier service error:", error);
+    return res.json({
+      rates: [
+        {
+          service_name: "⚠️ Metrobi Delivery - Temporarily Unavailable",
+          service_code: "METROBI_UNAVAILABLE",
+          total_price: "999900",
+          currency: "USD",
+          description: "Metrobi could not calculate delivery for this address"
+        }
+      ]
+    });
+  }
 })
 
 app.post(
@@ -167,7 +167,7 @@ app.post(
 
     let order;
     try {
-      order = JSON.parse(req.body.toString("utf8")); 
+      order = JSON.parse(req.body.toString("utf8"));
     } catch (e) {
       console.error("Failed to parse order JSON:", e);
       return res.sendStatus(400);
@@ -190,44 +190,47 @@ app.post(
       // If we've already created a Metrobi job for this order, do nothing.
       if (createdDeliveriesByOrderId.has(orderId)) return res.sendStatus(200);
 
-      const pickupAddress =
-        process.env.PICKUP_ADDRESS || "184 Lexington Ave New York NY 10016";
-
       const sa = order.shipping_address || {};
-      const dropoffAddress = `${sa.address1 || ""} ${sa.city || ""} ${
-        sa.province || ""
-      } ${sa.zip || ""}`.trim();
-
       const now = new Date();
-      const threeHoursLater = new Date(now.getTime() + 3 * 60 * 60 * 1000);
+
+      const pickup_time = {
+        date: now.toISOString().split("T")[0], // YYYY-MM-DD
+        time: now.toISOString().split("T")[1].substring(0, 5) // HH:MM
+      };
 
       const metrobiPayload = {
-        size: "suv",
+        pickup_time,
         pickup_stop: {
-          address: pickupAddress,
-          contact_name:
-            order.shipping_address?.name ||
-            order.customer?.first_name ||
-            "Store",
-          contact_phone:
-            order.shipping_address?.phone ||
-            order.customer?.phone ||
-            order.contact_email,
-          notes: `Order #${order.name} (${order.id})`,
+          contact: {
+            phone: order.customer?.phone || null,
+            email: order.email || null,
+          },
+          name: "Metrobi", 
+          address: order.billing_address?.address1 || "184 Lexington Ave New York NY 10016",
+          address2: order.billing_address?.address2 || "",
+          instructions: "Walk through the front door", 
+          business_name: order.billing_address?.company || "Vino Fine Wine & Spirits",
+          lat: order.billing_address?.latitude || null,
+          lng: order.billing_address?.longitude || null,
         },
         dropoff_stop: {
-          address: dropoffAddress,
-          contact_name: order.shipping_address?.name,
-          contact_phone:
-            order.shipping_address?.phone ||
-            order.customer?.phone ||
-            order.contact_email,
-          notes: order.note || "Deliver Shopify order",
+          contact: {
+            phone: sa.phone || order.customer?.phone || null,
+            email: order.email || null,
+          },
+          name: sa.name || order.customer?.first_name || "Recipient",
+          address: `${sa.address1 || ""} ${sa.city || ""} ${sa.province || ""} ${sa.zip || ""}`.trim(),
+          address2: sa.address2 || "",
+          instructions: sa.company ? `Deliver to company: ${sa.company}` : "Leave at front door",
+          lat: sa.latitude || null,
+          lng: sa.longitude || null,
         },
-
-        pickup_start_time: now.toISOString(),
-        pickup_end_time: threeHoursLater.toISOString(),
-        reference: `shopify:${order.id}`,
+        settings: {
+          merge_delivery: false,
+          return_to_pickup: false,
+        },
+        size: "suv",
+        job_description: `Deliver Shopify Order #${order.name} (${order.id})`,
       };
 
       // Create delivery with Metrobi
@@ -290,5 +293,5 @@ app.post(
 
 
 app.listen(process.env.PORT, () => {
-    console.log(`Carrier service listening on port ${process.env.PORT}`)
+  console.log(`Carrier service listening on port ${process.env.PORT}`)
 })
