@@ -206,12 +206,9 @@ app.post(
             email: order.email || null,
           },
           name: "Vino Fine Wine & Spirits", 
-          address: order.billing_address?.address1 || "184 Lexington Ave New York NY 10016",
-          address2: order.billing_address?.address2 || "",
+          address: "184 Lexington Ave New York NY 10016",
           instructions: "Walk through the front door", 
-          business_name: order.billing_address?.company || "Vino Fine Wine & Spirits",
-          lat: order.billing_address?.latitude || null,
-          lng: order.billing_address?.longitude || null,
+          business_name: "Vino Fine Wine & Spirits",
         },
         dropoff_stop: {
           contact: {
@@ -222,8 +219,6 @@ app.post(
           address: `${sa.address1 || ""} ${sa.city || ""} ${sa.province || ""} ${sa.zip || ""}`.trim(),
           address2: sa.address2 || "",
           instructions: sa.company ? `Deliver to company: ${sa.company}` : "Leave at front door",
-          lat: sa.latitude || null,
-          lng: sa.longitude || null,
         },
         settings: {
           merge_delivery: false,
