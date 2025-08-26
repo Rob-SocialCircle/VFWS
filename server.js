@@ -205,7 +205,7 @@ app.post(
             phone: order.customer?.phone || null,
             email: order.email || null,
           },
-          name: "Metrobi", 
+          name: "Vino Fine Wine & Spirits", 
           address: order.billing_address?.address1 || "184 Lexington Ave New York NY 10016",
           address2: order.billing_address?.address2 || "",
           instructions: "Walk through the front door", 
