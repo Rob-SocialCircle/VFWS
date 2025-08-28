@@ -168,34 +168,73 @@ async function createShopifyFulfillment({
   trackingCompany,
   notifyCustomer,
 }) {
-  const url = `https://${shop}/admin/api/2025-01/orders/${orderId}/fulfillments.json`;
-
-  const fulfillmentPayload = {
-    fulfillment: {
-      tracking_number: trackingNumber,
-      tracking_url: trackingUrl,
-      tracking_company: trackingCompany,
-      notify_customer: notifyCustomer,
-    },
-  };
-
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Shopify-Access-Token": token,
-    },
-    body: JSON.stringify(fulfillmentPayload),
-  });
-
-  if (!response.ok) {
-    const errorBody = await response.text();
-    throw new Error(
-      `Shopify fulfillment create failed (${response.status}): ${errorBody}`
+  try {
+    const fulfillmentOrdersResp = await fetch(
+      `https://${shop}/admin/api/2025-01/orders/${orderId}/fulfillment_orders.json`,
+      {
+        headers: {
+          "X-Shopify-Access-Token": token,
+          "Content-Type": "application/json",
+        },
+      }
     );
-  }
 
-  return response.json();
+    if (!fulfillmentOrdersResp.ok) {
+      throw new Error(
+        `Failed to fetch fulfillment orders (${fulfillmentOrdersResp.status}): ${await fulfillmentOrdersResp.text()}`
+      );
+    }
+
+    const fulfillmentOrders = await fulfillmentOrdersResp.json();
+    if (
+      !fulfillmentOrders.fulfillment_orders ||
+      fulfillmentOrders.fulfillment_orders.length === 0
+    ) {
+      throw new Error(`No fulfillment orders found for order ${orderId}`);
+    }
+
+    const fulfillmentOrderId = fulfillmentOrders.fulfillment_orders[0].id;
+
+    const fulfillmentResp = await fetch(
+      `https://${shop}/admin/api/2025-01/fulfillments.json`,
+      {
+        method: "POST",
+        headers: {
+          "X-Shopify-Access-Token": token,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          fulfillment: {
+            message: "Metrobi courier assigned",
+            notify_customer: notifyCustomer,
+            tracking_info: {
+              number: trackingNumber,
+              url: trackingUrl,
+              company: trackingCompany,
+            },
+            line_items_by_fulfillment_order: [
+              {
+                fulfillment_order_id: fulfillmentOrderId,
+              },
+            ],
+          },
+        }),
+      }
+    );
+
+    if (!fulfillmentResp.ok) {
+      throw new Error(
+        `Shopify fulfillment create failed (${fulfillmentResp.status}): ${await fulfillmentResp.text()}`
+      );
+    }
+
+    const fulfillment = await fulfillmentResp.json();
+    console.log("✅ Fulfillment created in Shopify:", fulfillment);
+    return fulfillment;
+  } catch (err) {
+    console.error("❌ Fulfillment create failed", err);
+    throw err;
+  }
 }
 
 app.post(
