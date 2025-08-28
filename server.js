@@ -159,6 +159,45 @@ app.post("/carrier_service", async (req, res) => {
   }
 })
 
+async function createShopifyFulfillment({
+  shop,
+  token,
+  orderId,
+  trackingNumber,
+  trackingUrl,
+  trackingCompany,
+  notifyCustomer,
+}) {
+  const url = `https://${shop}/admin/api/2025-01/orders/${orderId}/fulfillments.json`;
+
+  const fulfillmentPayload = {
+    fulfillment: {
+      tracking_number: trackingNumber,
+      tracking_url: trackingUrl,
+      tracking_company: trackingCompany,
+      notify_customer: notifyCustomer,
+    },
+  };
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Shopify-Access-Token": token,
+    },
+    body: JSON.stringify(fulfillmentPayload),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(
+      `Shopify fulfillment create failed (${response.status}): ${errorBody}`
+    );
+  }
+
+  return response.json();
+}
+
 app.post(
   "/webhooks/orders_create",
   express.raw({ type: "application/json" }),
