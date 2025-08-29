@@ -186,7 +186,9 @@ async function createShopifyFulfillment({
     console.log(`The following order was fetched`, JSON.stringify(orderRes, null, 2))
 
     const orderData = await orderRes.json();
-    const lineItems = orderData.order.line_items.map((item) => ({
+    const lineItems = orderData.order.line_items
+    .filter(item => item.requires_shipping && item.fulfillable_quantity > 0)
+    .map((item) => ({
       id: item.id,
       quantity: item.fulfillable_quantity,
     }));
@@ -203,7 +205,7 @@ async function createShopifyFulfillment({
       },
     };
 
-    console.log(`Attempting to fetch from fulfillments.json`)
+    console.log(`Attempting to post fulfillmentPayload\n`, JSON.stringify(fulfillmentPayload, null, 2))
 
 
     const res = await fetch(
