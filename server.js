@@ -218,6 +218,8 @@ async function createShopifyFulfillment({
       }
     );
 
+    console.log(`Checking response: ${res}`)
+
     if (!res.ok) {
       const text = await res.text();
       throw new Error(
