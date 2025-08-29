@@ -183,15 +183,19 @@ async function createShopifyFulfillment({
     if (!orderRes.ok) {
       throw new Error(`Failed to fetch order: ${orderRes.statusText}`);
     }
-    console.log(`The following order was fetched`, JSON.stringify(orderRes, null, 2))
 
     const orderData = await orderRes.json();
     const lineItems = orderData.order.line_items
-    .filter(item => item.requires_shipping && item.fulfillable_quantity > 0)
-    .map((item) => ({
-      id: item.id,
-      quantity: item.fulfillable_quantity,
-    }));
+      .filter(item => item.requires_shipping && item.fulfillable_quantity > 0)
+      .map(item => ({
+        id: item.id,
+        quantity: item.fulfillable_quantity,
+      }));
+
+    if (lineItems.length === 0) {
+      console.log("No shippable items for fulfillment, skipping");
+      return null;
+    }
 
     let locationId = orderData.order.location_id;
     if (!locationId) {
@@ -202,19 +206,19 @@ async function createShopifyFulfillment({
       locationId = locData.locations[0]?.id;
       if (!locationId) throw new Error("No valid location found for fulfillment");
     }
+
     const fulfillmentPayload = {
       fulfillment: {
-        location_id: locationId, 
-        tracking_number: trackingNumber,
-        tracking_url: trackingUrl,
-        tracking_company: trackingCompany,
-        notify_customer: notifyCustomer,
+        location_id: locationId,
         line_items: lineItems,
+        tracking_numbers: [trackingNumber],
+        tracking_urls: [trackingUrl],
+        tracking_company: trackingCompany,
       },
+      notify_customer: notifyCustomer,
     };
 
-    console.log(`Attempting to post fulfillmentPayload\n`, JSON.stringify(fulfillmentPayload, null, 2))
-
+    console.log("Final fulfillment payload", JSON.stringify(fulfillmentPayload, null, 2));
 
     const res = await fetch(
       `https://${shop}/admin/api/2025-01/orders/${orderId}/fulfillments.json`,
@@ -228,18 +232,14 @@ async function createShopifyFulfillment({
       }
     );
 
-    console.log(`Checking response`, JSON.stringify(res, null, 2))
-
     if (!res.ok) {
       const text = await res.text();
-      throw new Error(
-        `Shopify fulfillment create failed (${res.status}): ${text}`
-      );
+      throw new Error(`Shopify fulfillment create failed (${res.status}): ${text}`);
     }
-    console.log(`Fetch successful. Await res.json`)
 
     const data = await res.json();
-    console.log(`Data found\n`, JSON.stringify(data, null, 2))
+    console.log("Fulfillment created successfully", JSON.stringify(data, null, 2));
+
     return data.fulfillment;
   } catch (err) {
     console.error("Fulfillment create failed", err);
