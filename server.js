@@ -270,18 +270,13 @@ app.post(
       // If we've already created a Metrobi job for this order, do nothing.
       if (createdDeliveriesByOrderId.has(orderId)) return res.sendStatus(200);
 
+
       const sa = order.shipping_address || {};
       const now = new Date();
-
       const pickup_time = {
         date: now.toISOString().split("T")[0], // YYYY-MM-DD
-        time: now.toISOString().split("T")[1].substring(0, 5) // HH:MM
+        time: now.toISOString().split("T")[1].substring(0,5) // HH:MM
       };
-
-
-      const dropoffAddress = [sa.address1, sa.address2, sa.city, sa.province, sa.zip].filter(Boolean).join(" ")
-
-      console.log("Dropoff stop\n", dropoffAddress)
 
       const metrobiPayload = {
         pickup_time,
@@ -290,19 +285,25 @@ app.post(
             phone: order.customer?.phone || null,
             email: order.email || null,
           },
-          name: "Vino Fine Wine & Spirits", 
+          name: "Metrobi", 
           address: "184 Lexington Ave New York NY 10016",
-          instructions: "Walk through the front door", 
-          business_name: "Vino Fine Wine & Spirits",
+          address2: "",
+          instructions: "Walk through the front door",
+          business_name: order.billing_address?.company || "Metrobi Inc",
+          lat: order.billing_address?.latitude || null,
+          lng: order.billing_address?.longitude || null,
         },
         dropoff_stop: {
           contact: {
             phone: sa.phone || order.customer?.phone || null,
             email: order.email || null,
           },
-          name: sa.name || `${order.customer?.first_name} ${order.customer?.last_name}` || "Recipient",
-          address: dropoffAddress,
+          name: sa.name || order.customer?.first_name || "Recipient",
+          address: `${sa.address1 || ""} ${sa.city || ""} ${sa.province || ""} ${sa.zip || ""}`.trim(),
+          address2: sa.address2 || "",
           instructions: sa.company ? `Deliver to company: ${sa.company}` : "Leave at front door",
+          lat: sa.latitude || null,
+          lng: sa.longitude || null,
         },
         settings: {
           merge_delivery: false,
