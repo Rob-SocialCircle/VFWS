@@ -288,9 +288,6 @@ app.post(
         time: now.toISOString().split("T")[1].substring(0, 5) // HH:MM
       };
 
-
-      console.log("Dropoff stop\n", dropoffAddress)
-
       const metrobiPayload = {
         pickup_time,
         pickup_stop: {
