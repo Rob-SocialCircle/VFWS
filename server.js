@@ -276,6 +276,8 @@ app.post(
         time: now.toISOString().split("T")[1].substring(0, 5) // HH:MM
       };
 
+      const dropoffAddress = [sa.address1, sa.address2, sa.city, sa.province, sa.zip].filter(Boolean).join(" ")
+
       const metrobiPayload = {
         pickup_time,
         pickup_stop: {
@@ -293,9 +295,8 @@ app.post(
             phone: sa.phone || order.customer?.phone || null,
             email: order.email || null,
           },
-          name: sa.name || order.customer?.first_name || "Recipient",
-          address: `${sa.address1 || ""} ${sa.city || ""} ${sa.province || ""} ${sa.zip || ""}`.trim(),
-          address2: sa.address2 || "",
+          name: sa.name || `${order.customer?.first_name} ${order.customer?.last_name}` || "Recipient",
+          address: dropoffAddress,
           instructions: sa.company ? `Deliver to company: ${sa.company}` : "Leave at front door",
         },
         settings: {
