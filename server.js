@@ -169,9 +169,6 @@ async function createShopifyFulfillment({
   notifyCustomer,
 }) {
   try {
-    const url = `https://${shop}/admin/api/2025-01/orders/${orderId}/fulfillments.json`;
-
-
     const orderRes = await fetch(
       `https://${shop}/admin/api/2025-01/orders/${orderId}.json`,
       {
@@ -186,6 +183,7 @@ async function createShopifyFulfillment({
     if (!orderRes.ok) {
       throw new Error(`Failed to fetch order: ${orderRes.statusText}`);
     }
+    console.log(`Order: ${orderRes.statusText} fetched successfully`)
 
     const orderData = await orderRes.json();
     const lineItems = orderData.order.line_items.map((item) => ({
@@ -193,26 +191,32 @@ async function createShopifyFulfillment({
       quantity: item.fulfillable_quantity,
     }));
 
-
+    // 2. Build fulfillment payload (legacy API expects these keys)
     const fulfillmentPayload = {
       fulfillment: {
+        location_id: orderData.order.location_id, 
         tracking_number: trackingNumber,
-        tracking_urls: [trackingUrl],
+        tracking_url: trackingUrl,
         tracking_company: trackingCompany,
         notify_customer: notifyCustomer,
-        line_items: lineItems, // fulfill all unfulfilled items
+        line_items: lineItems,
       },
     };
 
+    console.log(`Attempting to fetch from fulfillments.json`)
 
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        "X-Shopify-Access-Token": token,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(fulfillmentPayload),
-    });
+
+    const res = await fetch(
+      `https://${shop}/admin/api/2025-01/orders/${orderId}/fulfillments.json`,
+      {
+        method: "POST",
+        headers: {
+          "X-Shopify-Access-Token": token,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(fulfillmentPayload),
+      }
+    );
 
     if (!res.ok) {
       const text = await res.text();
@@ -220,8 +224,10 @@ async function createShopifyFulfillment({
         `Shopify fulfillment create failed (${res.status}): ${text}`
       );
     }
+    console.log(`Fetch successful. Await res.json`)
 
     const data = await res.json();
+    console.log(`Data found\n${data}`)
     return data.fulfillment;
   } catch (err) {
     console.error("Fulfillment create failed", err);
