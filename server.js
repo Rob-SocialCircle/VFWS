@@ -159,94 +159,6 @@ app.post("/carrier_service", async (req, res) => {
   }
 })
 
-async function createShopifyFulfillment({
-  shop,
-  token,
-  orderId,
-  trackingNumber,
-  trackingUrl,
-  trackingCompany,
-  notifyCustomer,
-}) {
-  try {
-    const orderRes = await fetch(
-      `https://${shop}/admin/api/2025-01/orders/${orderId}.json`,
-      {
-        method: "GET",
-        headers: {
-          "X-Shopify-Access-Token": token,
-          "Content-Type": "application/json",
-        },
-      }
-    );
-
-    if (!orderRes.ok) {
-      throw new Error(`Failed to fetch order: ${orderRes.statusText}`);
-    }
-
-    const orderData = await orderRes.json();
-    const lineItems = orderData.order.line_items
-      .filter(item => item.requires_shipping && item.fulfillable_quantity > 0)
-      .map(item => ({
-        id: item.id,
-        quantity: item.fulfillable_quantity,
-      }));
-
-    if (lineItems.length === 0) {
-      console.log("No shippable items for fulfillment, skipping");
-      return null;
-    }
-
-    let locationId = orderData.order.location_id;
-    if (!locationId) {
-      const locRes = await fetch(`https://${shop}/admin/api/2025-01/locations.json`, {
-        headers: { "X-Shopify-Access-Token": token }
-      });
-      const locData = await locRes.json();
-      locationId = locData.locations[0]?.id;
-      if (!locationId) throw new Error("No valid location found for fulfillment");
-    }
-
-    const fulfillmentPayload = {
-      fulfillment: {
-        location_id: locationId,
-        line_items: lineItems,
-        tracking_numbers: [trackingNumber],
-        tracking_urls: [trackingUrl],
-        tracking_company: trackingCompany,
-      },
-      notify_customer: notifyCustomer,
-    };
-
-    console.log("Final fulfillment payload", JSON.stringify(fulfillmentPayload, null, 2));
-
-    const res = await fetch(
-      `https://${shop}/admin/api/2025-01/orders/${orderId}/fulfillments.json`,
-      {
-        method: "POST",
-        headers: {
-          "X-Shopify-Access-Token": token,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(fulfillmentPayload),
-      }
-    );
-
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`Shopify fulfillment create failed (${res.status}): ${text}`);
-    }
-
-    const data = await res.json();
-    console.log("Fulfillment created successfully", JSON.stringify(data, null, 2));
-
-    return data.fulfillment;
-  } catch (err) {
-    console.error("Fulfillment create failed", err);
-    throw err;
-  }
-}
-
 app.post(
   "/webhooks/orders_create",
   express.raw({ type: "application/json" }),
@@ -260,8 +172,6 @@ app.post(
       console.error("Failed to parse order JSON:", e);
       return res.sendStatus(400);
     }
-
-    console.log("Order used\n", JSON.stringify(order, null, 2))
 
     try {
       // Only act if the buyer chose Metrobi at checkout
@@ -297,7 +207,6 @@ app.post(
           },
           name: "Vino Fine Wine & Spirits", 
           address: "184 Lexington Ave New York NY 10016",
-          address2: "",
           instructions: "Walk through the front door", 
           business_name: "Vino Fine Wine & Spirits",
         },
@@ -306,7 +215,7 @@ app.post(
             phone: sa.phone || order.customer?.phone || null,
             email: order.email || null,
           },
-          name: sa.name || `${order.customer?.first_name} ${order.customer?.last_name}` || "Recipient",
+          name: sa.name || order.customer?.first_name || "Recipient",
           address: `${sa.address1 || ""} ${sa.city || ""} ${sa.province || ""} ${sa.zip || ""}`.trim(),
           address2: sa.address2 || "",
           instructions: sa.company ? `Deliver to company: ${sa.company}` : "Leave at front door",
@@ -318,8 +227,6 @@ app.post(
         size: "suv",
         job_description: `Deliver Shopify Order #${order.name} (${order.id})`,
       };
-
-      console.log("Metrobi Payload\n", JSON.stringify(metrobiPayload, null, 2))
 
       // Create delivery with Metrobi
       const controller = new AbortController();
@@ -355,21 +262,21 @@ app.post(
 
       createdDeliveriesByOrderId.set(orderId, { deliveryId, trackingUrl });
 
-      //Create a Shopify Fulfillment WITH tracking
-      try {
-        await createShopifyFulfillment({
-          shop: req.get("X-Shopify-Shop-Domain"),
-          token: process.env.SHOPIFY_ADMIN_TOKEN,
-          orderId,
-          trackingNumber: String(deliveryId || orderId),
-          trackingUrl: trackingUrl || "https://metrobi.com/track",
-          trackingCompany: "Metrobi Courier",
-          notifyCustomer: true,
-        });
-      } catch (e) {
-        console.error("Fulfillment create failed", e);
-        // Do not fail the webhook; the Metrobi job is already created.
-      }
+      // Create a Shopify Fulfillment WITH tracking
+      // try {
+      //   await createShopifyFulfillment({
+      //     shop: req.get("X-Shopify-Shop-Domain"),
+      //     token: process.env.SHOPIFY_ADMIN_TOKEN,
+      //     orderId,
+      //     trackingNumber: String(deliveryId || orderId),
+      //     trackingUrl: trackingUrl || "https://metrobi.com/track",
+      //     trackingCompany: "Metrobi Courier",
+      //     notifyCustomer: true,
+      //   });
+      // } catch (e) {
+      //   console.error("Fulfillment create failed", e);
+      //   // Do not fail the webhook; the Metrobi job is already created.
+      // }
 
       return res.sendStatus(200);
     } catch (e) {
