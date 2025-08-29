@@ -218,7 +218,7 @@ async function createShopifyFulfillment({
       }
     );
 
-    console.log(`Checking response: ${res}`)
+    console.log(`Checking response`, JSON.stringify(res, null, 2))
 
     if (!res.ok) {
       const text = await res.text();
@@ -311,6 +311,8 @@ app.post(
         size: "suv",
         job_description: `Deliver Shopify Order #${order.name} (${order.id})`,
       };
+
+      console.log("Metrobi Payload\n", JSON.stringify(metrobiPayload, null, 2))
 
       // Create delivery with Metrobi
       const controller = new AbortController();
