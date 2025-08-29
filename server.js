@@ -169,9 +169,13 @@ async function createShopifyFulfillment({
   notifyCustomer,
 }) {
   try {
-    const fulfillmentOrdersResp = await fetch(
-      `https://${shop}/admin/api/2025-01/orders/${orderId}/fulfillment_orders.json`,
+    const url = `https://${shop}/admin/api/2025-01/orders/${orderId}/fulfillments.json`;
+
+
+    const orderRes = await fetch(
+      `https://${shop}/admin/api/2025-01/orders/${orderId}.json`,
       {
+        method: "GET",
         headers: {
           "X-Shopify-Access-Token": token,
           "Content-Type": "application/json",
@@ -179,60 +183,48 @@ async function createShopifyFulfillment({
       }
     );
 
-    if (!fulfillmentOrdersResp.ok) {
+    if (!orderRes.ok) {
+      throw new Error(`Failed to fetch order: ${orderRes.statusText}`);
+    }
+
+    const orderData = await orderRes.json();
+    const lineItems = orderData.order.line_items.map((item) => ({
+      id: item.id,
+      quantity: item.fulfillable_quantity,
+    }));
+
+
+    const fulfillmentPayload = {
+      fulfillment: {
+        tracking_number: trackingNumber,
+        tracking_urls: [trackingUrl],
+        tracking_company: trackingCompany,
+        notify_customer: notifyCustomer,
+        line_items: lineItems, // fulfill all unfulfilled items
+      },
+    };
+
+
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "X-Shopify-Access-Token": token,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(fulfillmentPayload),
+    });
+
+    if (!res.ok) {
+      const text = await res.text();
       throw new Error(
-        `Failed to fetch fulfillment orders (${fulfillmentOrdersResp.status}): ${await fulfillmentOrdersResp.text()}`
+        `Shopify fulfillment create failed (${res.status}): ${text}`
       );
     }
 
-    const fulfillmentOrders = await fulfillmentOrdersResp.json();
-    if (
-      !fulfillmentOrders.fulfillment_orders ||
-      fulfillmentOrders.fulfillment_orders.length === 0
-    ) {
-      throw new Error(`No fulfillment orders found for order ${orderId}`);
-    }
-
-    const fulfillmentOrderId = fulfillmentOrders.fulfillment_orders[0].id;
-
-    const fulfillmentResp = await fetch(
-      `https://${shop}/admin/api/2025-01/fulfillments.json`,
-      {
-        method: "POST",
-        headers: {
-          "X-Shopify-Access-Token": token,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          fulfillment: {
-            message: "Metrobi courier assigned",
-            notify_customer: notifyCustomer,
-            tracking_info: {
-              number: trackingNumber,
-              url: trackingUrl,
-              company: trackingCompany,
-            },
-            line_items_by_fulfillment_order: [
-              {
-                fulfillment_order_id: fulfillmentOrderId,
-              },
-            ],
-          },
-        }),
-      }
-    );
-
-    if (!fulfillmentResp.ok) {
-      throw new Error(
-        `Shopify fulfillment create failed (${fulfillmentResp.status}): ${await fulfillmentResp.text()}`
-      );
-    }
-
-    const fulfillment = await fulfillmentResp.json();
-    console.log("✅ Fulfillment created in Shopify:", fulfillment);
-    return fulfillment;
+    const data = await res.json();
+    return data.fulfillment;
   } catch (err) {
-    console.error("❌ Fulfillment create failed", err);
+    console.error("Fulfillment create failed", err);
     throw err;
   }
 }
