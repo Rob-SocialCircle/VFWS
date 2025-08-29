@@ -289,8 +289,6 @@ app.post(
       };
 
 
-      const dropoffAddress = [sa.address1, sa.city, sa.province, sa.zip].filter(Boolean).join(" ")
-
       console.log("Dropoff stop\n", dropoffAddress)
 
       const metrobiPayload = {
@@ -312,8 +310,8 @@ app.post(
             email: order.email || null,
           },
           name: sa.name || `${order.customer?.first_name} ${order.customer?.last_name}` || "Recipient",
-          address: dropoffAddress,
-          address2: sa.address2,
+          address: `${sa.address1 || ""} ${sa.city || ""} ${sa.province || ""} ${sa.zip || ""}`.trim(),
+          address2: sa.address2 || "",
           instructions: sa.company ? `Deliver to company: ${sa.company}` : "Leave at front door",
         },
         settings: {
