@@ -193,10 +193,18 @@ async function createShopifyFulfillment({
       quantity: item.fulfillable_quantity,
     }));
 
-    // 2. Build fulfillment payload (legacy API expects these keys)
+    let locationId = orderData.order.location_id;
+    if (!locationId) {
+      const locRes = await fetch(`https://${shop}/admin/api/2025-01/locations.json`, {
+        headers: { "X-Shopify-Access-Token": token }
+      });
+      const locData = await locRes.json();
+      locationId = locData.locations[0]?.id;
+      if (!locationId) throw new Error("No valid location found for fulfillment");
+    }
     const fulfillmentPayload = {
       fulfillment: {
-        location_id: orderData.order.location_id, 
+        location_id: locationId, 
         tracking_number: trackingNumber,
         tracking_url: trackingUrl,
         tracking_company: trackingCompany,
