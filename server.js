@@ -278,9 +278,10 @@ app.post(
         time: now.toISOString().split("T")[1].substring(0, 5) // HH:MM
       };
 
-      console.log(JSON.stringify(sa, null, 2))
 
       const dropoffAddress = [sa.address1, sa.address2, sa.city, sa.province, sa.zip].filter(Boolean).join(" ")
+
+      console.log("Dropoff stop\n", dropoffAddress)
 
       const metrobiPayload = {
         pickup_time,
