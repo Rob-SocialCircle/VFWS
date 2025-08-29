@@ -159,19 +159,74 @@ app.post("/carrier_service", async (req, res) => {
   }
 })
 
-function formatAddress(a) {
-  if (!a) return "";
-  const parts = [
-    a.address1,
-    a.address2,
-    a.city,
-    a.province_code || a.province,
-    a.zip,
-    a.country_code || a.country,
-  ];
-  return parts
-    .filter(p => typeof p === "string" && p.trim().length > 0)
-    .join(", ");
+async function createShopifyFulfillment({
+  shop,
+  token,
+  orderId,
+  trackingNumber,
+  trackingUrl,
+  trackingCompany,
+  notifyCustomer,
+}) {
+  try {
+    const url = `https://${shop}/admin/api/2025-01/orders/${orderId}/fulfillments.json`;
+
+
+    const orderRes = await fetch(
+      `https://${shop}/admin/api/2025-01/orders/${orderId}.json`,
+      {
+        method: "GET",
+        headers: {
+          "X-Shopify-Access-Token": token,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    if (!orderRes.ok) {
+      throw new Error(`Failed to fetch order: ${orderRes.statusText}`);
+    }
+
+    const orderData = await orderRes.json();
+    const lineItems = orderData.order.line_items.map((item) => ({
+      id: item.id,
+      quantity: item.fulfillable_quantity,
+    }));
+
+
+    const fulfillmentPayload = {
+      fulfillment: {
+        tracking_number: trackingNumber,
+        tracking_urls: [trackingUrl],
+        tracking_company: trackingCompany,
+        notify_customer: notifyCustomer,
+        line_items: lineItems, // fulfill all unfulfilled items
+      },
+    };
+
+
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "X-Shopify-Access-Token": token,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(fulfillmentPayload),
+    });
+
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(
+        `Shopify fulfillment create failed (${res.status}): ${text}`
+      );
+    }
+
+    const data = await res.json();
+    return data.fulfillment;
+  } catch (err) {
+    console.error("Fulfillment create failed", err);
+    throw err;
+  }
 }
 
 app.post(
@@ -207,19 +262,11 @@ app.post(
 
       const sa = order.shipping_address || {};
       const now = new Date();
-      const dropoffAddress = formatAddress(sa);
-
-
-      if (!dropoffAddress) {
-        console.warn(`Order ${order.id}: no shipping address; skipping Metrobi create.`);
-        return res.sendStatus(200);
-      }
 
       const pickup_time = {
         date: now.toISOString().split("T")[0], // YYYY-MM-DD
         time: now.toISOString().split("T")[1].substring(0, 5) // HH:MM
       };
-      const pickupAddress = "184 Lexington Ave New York NY 10016";
 
       const metrobiPayload = {
         pickup_time,
@@ -228,9 +275,9 @@ app.post(
             phone: order.customer?.phone || null,
             email: order.email || null,
           },
-          name: "Vino Fine Wine & Spirits",
-          address: pickupAddress,
-          instructions: "Walk through the front door",
+          name: "Vino Fine Wine & Spirits", 
+          address: "184 Lexington Ave New York NY 10016",
+          instructions: "Walk through the front door", 
           business_name: "Vino Fine Wine & Spirits",
         },
         dropoff_stop: {
@@ -238,10 +285,9 @@ app.post(
             phone: sa.phone || order.customer?.phone || null,
             email: order.email || null,
           },
-          name: sa.name || `${order.customer?.first_name || ""} ${order.customer?.last_name || ""}`.trim() || "Recipient",
-          address: dropoffAddress,              // ← use the formatted address
-          // You can keep address2 separately if Metrobi supports it, but the main
-          // address MUST be fully usable alone.
+          name: sa.name || order.customer?.first_name || "Recipient",
+          address: `${sa.address1 || ""} ${sa.city || ""} ${sa.province || ""} ${sa.zip || ""}`.trim(),
+          address2: sa.address2 || "",
           instructions: sa.company ? `Deliver to company: ${sa.company}` : "Leave at front door",
         },
         settings: {
@@ -286,21 +332,21 @@ app.post(
 
       createdDeliveriesByOrderId.set(orderId, { deliveryId, trackingUrl });
 
-      // Create a Shopify Fulfillment WITH tracking
-      // try {
-      //   await createShopifyFulfillment({
-      //     shop: req.get("X-Shopify-Shop-Domain"),
-      //     token: process.env.SHOPIFY_ADMIN_TOKEN,
-      //     orderId,
-      //     trackingNumber: String(deliveryId || orderId),
-      //     trackingUrl: trackingUrl || "https://metrobi.com/track",
-      //     trackingCompany: "Metrobi Courier",
-      //     notifyCustomer: true,
-      //   });
-      // } catch (e) {
-      //   console.error("Fulfillment create failed", e);
-      //   // Do not fail the webhook; the Metrobi job is already created.
-      // }
+      //Create a Shopify Fulfillment WITH tracking
+      try {
+        await createShopifyFulfillment({
+          shop: req.get("X-Shopify-Shop-Domain"),
+          token: process.env.SHOPIFY_ADMIN_TOKEN,
+          orderId,
+          trackingNumber: String(deliveryId || orderId),
+          trackingUrl: trackingUrl || "https://metrobi.com/track",
+          trackingCompany: "Metrobi Courier",
+          notifyCustomer: true,
+        });
+      } catch (e) {
+        console.error("Fulfillment create failed", e);
+        // Do not fail the webhook; the Metrobi job is already created.
+      }
 
       return res.sendStatus(200);
     } catch (e) {
