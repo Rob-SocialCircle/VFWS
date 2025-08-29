@@ -229,7 +229,7 @@ async function createShopifyFulfillment({
     console.log(`Fetch successful. Await res.json`)
 
     const data = await res.json();
-    console.log(`Data found\n${data}`)
+    console.log(`Data found\n`, JSON.stringify(data, null, 2))
     return data.fulfillment;
   } catch (err) {
     console.error("Fulfillment create failed", err);
@@ -251,7 +251,7 @@ app.post(
       return res.sendStatus(400);
     }
 
-    console.log(`Order used\n${order}`)
+    console.log("Order used\n", JSON.stringify(order, null, 2))
 
     try {
       // Only act if the buyer chose Metrobi at checkout
