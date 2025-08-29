@@ -251,6 +251,8 @@ app.post(
       return res.sendStatus(400);
     }
 
+    console.log(`Order used\n${order}`)
+
     try {
       // Only act if the buyer chose Metrobi at checkout
       const usedMetrobi =
