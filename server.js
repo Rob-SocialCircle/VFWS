@@ -159,76 +159,6 @@ app.post("/carrier_service", async (req, res) => {
   }
 })
 
-async function createShopifyFulfillment({
-  shop,
-  token,
-  orderId,
-  trackingNumber,
-  trackingUrl,
-  trackingCompany,
-  notifyCustomer,
-}) {
-  try {
-    const url = `https://${shop}/admin/api/2025-01/orders/${orderId}/fulfillments.json`;
-
-
-    const orderRes = await fetch(
-      `https://${shop}/admin/api/2025-01/orders/${orderId}.json`,
-      {
-        method: "GET",
-        headers: {
-          "X-Shopify-Access-Token": token,
-          "Content-Type": "application/json",
-        },
-      }
-    );
-
-    if (!orderRes.ok) {
-      throw new Error(`Failed to fetch order: ${orderRes.statusText}`);
-    }
-
-    const orderData = await orderRes.json();
-    const lineItems = orderData.order.line_items.map((item) => ({
-      id: item.id,
-      quantity: item.fulfillable_quantity,
-    }));
-
-
-    const fulfillmentPayload = {
-      fulfillment: {
-        tracking_number: trackingNumber,
-        tracking_urls: [trackingUrl],
-        tracking_company: trackingCompany,
-        notify_customer: notifyCustomer,
-        line_items: lineItems, // fulfill all unfulfilled items
-      },
-    };
-
-
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        "X-Shopify-Access-Token": token,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(fulfillmentPayload),
-    });
-
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(
-        `Shopify fulfillment create failed (${res.status}): ${text}`
-      );
-    }
-
-    const data = await res.json();
-    return data.fulfillment;
-  } catch (err) {
-    console.error("Fulfillment create failed", err);
-    throw err;
-  }
-}
-
 app.post(
   "/webhooks/orders_create",
   express.raw({ type: "application/json" }),
@@ -332,21 +262,21 @@ app.post(
 
       createdDeliveriesByOrderId.set(orderId, { deliveryId, trackingUrl });
 
-      //Create a Shopify Fulfillment WITH tracking
-      try {
-        await createShopifyFulfillment({
-          shop: req.get("X-Shopify-Shop-Domain"),
-          token: process.env.SHOPIFY_ADMIN_TOKEN,
-          orderId,
-          trackingNumber: String(deliveryId || orderId),
-          trackingUrl: trackingUrl || "https://metrobi.com/track",
-          trackingCompany: "Metrobi Courier",
-          notifyCustomer: true,
-        });
-      } catch (e) {
-        console.error("Fulfillment create failed", e);
-        // Do not fail the webhook; the Metrobi job is already created.
-      }
+      // Create a Shopify Fulfillment WITH tracking
+      // try {
+      //   await createShopifyFulfillment({
+      //     shop: req.get("X-Shopify-Shop-Domain"),
+      //     token: process.env.SHOPIFY_ADMIN_TOKEN,
+      //     orderId,
+      //     trackingNumber: String(deliveryId || orderId),
+      //     trackingUrl: trackingUrl || "https://metrobi.com/track",
+      //     trackingCompany: "Metrobi Courier",
+      //     notifyCustomer: true,
+      //   });
+      // } catch (e) {
+      //   console.error("Fulfillment create failed", e);
+      //   // Do not fail the webhook; the Metrobi job is already created.
+      // }
 
       return res.sendStatus(200);
     } catch (e) {
