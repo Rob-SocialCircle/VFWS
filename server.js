@@ -183,7 +183,7 @@ async function createShopifyFulfillment({
     if (!orderRes.ok) {
       throw new Error(`Failed to fetch order: ${orderRes.statusText}`);
     }
-    console.log(`Order: ${orderRes.statusText} fetched successfully`)
+    console.log(`The following order was fetched`, JSON.stringify(orderRes, null, 2))
 
     const orderData = await orderRes.json();
     const lineItems = orderData.order.line_items.map((item) => ({
