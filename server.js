@@ -335,6 +335,8 @@ app.post(
 
       const metrobiData = await metrobiResp.json();
 
+      console.log("metrobiData\n", JSON.stringify(metrobiData, null, 2))
+
       const deliveryId =
         metrobiData.id ||
         metrobiData.delivery_id ||
