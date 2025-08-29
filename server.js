@@ -289,7 +289,7 @@ app.post(
       };
 
 
-      const dropoffAddress = [sa.address1, sa.address2, sa.city, sa.province, sa.zip].filter(Boolean).join(" ")
+      const dropoffAddress = [sa.address1, sa.city, sa.province, sa.zip].filter(Boolean).join(" ")
 
       console.log("Dropoff stop\n", dropoffAddress)
 
@@ -302,6 +302,7 @@ app.post(
           },
           name: "Vino Fine Wine & Spirits", 
           address: "184 Lexington Ave New York NY 10016",
+          address2: "",
           instructions: "Walk through the front door", 
           business_name: "Vino Fine Wine & Spirits",
         },
@@ -312,6 +313,7 @@ app.post(
           },
           name: sa.name || `${order.customer?.first_name} ${order.customer?.last_name}` || "Recipient",
           address: dropoffAddress,
+          address2: sa.address2,
           instructions: sa.company ? `Deliver to company: ${sa.company}` : "Leave at front door",
         },
         settings: {
