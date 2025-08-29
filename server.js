@@ -159,6 +159,21 @@ app.post("/carrier_service", async (req, res) => {
   }
 })
 
+function formatAddress(a) {
+  if (!a) return "";
+  const parts = [
+    a.address1,
+    a.address2,
+    a.city,
+    a.province_code || a.province,
+    a.zip,
+    a.country_code || a.country,
+  ];
+  return parts
+    .filter(p => typeof p === "string" && p.trim().length > 0)
+    .join(", ");
+}
+
 app.post(
   "/webhooks/orders_create",
   express.raw({ type: "application/json" }),
@@ -192,11 +207,19 @@ app.post(
 
       const sa = order.shipping_address || {};
       const now = new Date();
+      const dropoffAddress = formatAddress(sa);
+
+
+      if (!dropoffAddress) {
+        console.warn(`Order ${order.id}: no shipping address; skipping Metrobi create.`);
+        return res.sendStatus(200);
+      }
 
       const pickup_time = {
         date: now.toISOString().split("T")[0], // YYYY-MM-DD
         time: now.toISOString().split("T")[1].substring(0, 5) // HH:MM
       };
+      const pickupAddress = "184 Lexington Ave New York NY 10016";
 
       const metrobiPayload = {
         pickup_time,
@@ -205,9 +228,9 @@ app.post(
             phone: order.customer?.phone || null,
             email: order.email || null,
           },
-          name: "Vino Fine Wine & Spirits", 
-          address: "184 Lexington Ave New York NY 10016",
-          instructions: "Walk through the front door", 
+          name: "Vino Fine Wine & Spirits",
+          address: pickupAddress,
+          instructions: "Walk through the front door",
           business_name: "Vino Fine Wine & Spirits",
         },
         dropoff_stop: {
@@ -215,9 +238,10 @@ app.post(
             phone: sa.phone || order.customer?.phone || null,
             email: order.email || null,
           },
-          name: sa.name || order.customer?.first_name || "Recipient",
-          address: `${sa.address1 || ""} ${sa.city || ""} ${sa.province || ""} ${sa.zip || ""}`.trim(),
-          address2: sa.address2 || "",
+          name: sa.name || `${order.customer?.first_name || ""} ${order.customer?.last_name || ""}`.trim() || "Recipient",
+          address: dropoffAddress,              // ← use the formatted address
+          // You can keep address2 separately if Metrobi supports it, but the main
+          // address MUST be fully usable alone.
           instructions: sa.company ? `Deliver to company: ${sa.company}` : "Leave at front door",
         },
         settings: {
