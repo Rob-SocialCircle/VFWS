@@ -447,6 +447,8 @@ app.post(
       return res.sendStatus(200);
     }
 
+    console.log("Payload\n", JSON.stringify(payload, null, 2))
+
     try {
       // Fulfillment Order id is always required, but its shape varies by payload
       const foId =
