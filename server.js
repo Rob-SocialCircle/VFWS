@@ -204,7 +204,29 @@ async function createShopifyFulfillment({
     };
 
     console.log(`Attempting to fetch from fulfillments.json`)
+    
+    const fulfillmentRes = await fetch(
+      `https://${shop}/admin/api/2025-01/orders/${orderId}/fulfillments.json`,
+      {
+        method: "GET",
+        headers: {
+          "X-Shopify-Access-Token": token,
+          "Content-Type": "application/json",
+        }
+      }
+    );
 
+    if (!fulfillmentRes.ok) {
+      const text = await fulfillmentRes.text();
+      throw new Error(`Fulfillment fetching failed (${fulfillmentRes.status}): ${text}`)
+    }
+
+    console.log("Waiting for fulfillment data");
+
+    const fulfillmentData = await fulfillmentRes.json();
+    console.log("Fulfillment Data\n", JSON.stringify(fulfillmentData, null, 2))
+
+    console.log("Sending fulfillment payload\n", JSON.stringify(fulfillmentPayload, null, 2))
 
     const res = await fetch(
       `https://${shop}/admin/api/2025-01/orders/${orderId}/fulfillments.json`,
@@ -226,7 +248,7 @@ async function createShopifyFulfillment({
         `Shopify fulfillment create failed (${res.status}): ${text}`
       );
     }
-    console.log(`Fetch successful. Await res.json`)
+    console.log(`Post successful. Await res.json`)
 
     const data = await res.json();
     console.log(`Data found\n`, JSON.stringify(data, null, 2))
@@ -289,7 +311,7 @@ app.post(
           address: "184 Lexington Ave New York NY 10016",
           address2: "",
           instructions: "Walk through the front door",
-          business_name: order.billing_address?.company || "Metrobi Inc",
+          business_name: "Vino's Fine Wine & Spirits",
         },
         dropoff_stop: {
           contact: {
