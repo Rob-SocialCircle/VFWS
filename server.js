@@ -15,6 +15,13 @@ app.use((req, res, next) => {
   }
 });
 
+function toLegacyId(idOrGid) {
+  // Accepts number, numeric string, or GID like "gid://shopify/Type/12345"
+  if (typeof idOrGid === "number") return String(idOrGid);
+  const s = String(idOrGid || "");
+  const m = s.match(/\d+$/);
+  return m ? m[0] : null;
+}
 
 function verifyShopifyWebhook(req) {
   try {
@@ -100,7 +107,7 @@ async function createShopifyFulfillment({
     // 2. Build fulfillment payload (legacy API expects these keys)
     const fulfillmentPayload = {
       fulfillment: {
-        location_id: orderData.order.location_id, 
+        location_id: orderData.order.location_id,
         tracking_number: trackingNumber,
         tracking_url: trackingUrl,
         tracking_company: trackingCompany,
@@ -110,7 +117,7 @@ async function createShopifyFulfillment({
     };
 
     console.log(`Attempting to fetch from fulfillments.json`)
-    
+
     const fulfillmentRes = await fetch(
       `https://${shop}/admin/api/2025-01/orders/${orderId}/fulfillments.json`,
       {
@@ -325,7 +332,7 @@ app.post(
       const now = new Date();
       const pickup_time = {
         date: now.toISOString().split("T")[0], // YYYY-MM-DD
-        time: now.toISOString().split("T")[1].substring(0,5) // HH:MM
+        time: now.toISOString().split("T")[1].substring(0, 5) // HH:MM
       };
 
       const metrobiPayload = {
@@ -335,7 +342,7 @@ app.post(
             phone: order.customer?.phone || null,
             email: order.email || null,
           },
-          name: "Vino Fine Wine & Spirits", 
+          name: "Vino Fine Wine & Spirits",
           address: "184 Lexington Ave New York NY 10016",
           address2: "",
           instructions: "Walk through the front door",
@@ -451,35 +458,31 @@ app.post(
 
     try {
       // Fulfillment Order id is always required, but its shape varies by payload
-      const foId =
-        payload.id ||
+      const foGidOrId =
         payload.fulfillment_order?.id ||
+        payload.id ||
         payload.fulfillment_order_id;
 
-      // Some payloads include order_id; if missing, fetch the FO to get it
-      let orderId =
-        payload.order_id ||
-        payload.fulfillment_order?.order_id ||
-        null;
-
+      const foId = toLegacyId(foGidOrId)
       if (!foId) {
         console.warn("[fo/create] No fulfillment order id found in webhook payload");
         return res.sendStatus(200);
       }
 
-      if (!orderId) {
-        try {
-          const fo = await shopRest({
-            shop,
-            accessToken,
-            method: "GET",
-            path: `/fulfillment_orders/${foId}.json`,
-          }).then(r => r.fulfillment_order);
-          orderId = fo?.order_id;
-        } catch (e) {
-          console.warn(`[fo/create] Could not fetch FO ${foId} to resolve order_id:`, e.message);
-        }
+      // Some payloads include order_id; if missing, fetch the FO to get it
+      let orderId;
+      try {
+        const foResp = await shopRest({
+          shop,
+          accessToken,
+          method: "GET",
+          path: `/fulfillment_orders/${foId}.json`,
+        }).then(r => r.fulfillment_order);
+        orderId = foResp?.fulfillment_order?.order_id;
+      } catch (e) {
+        console.warn(`[fo/create] Could not fetch FO ${foId} to resolve order_id:`, e.message);
       }
+
 
       if (!orderId) {
         console.warn(`[fo/create] Missing order_id for FO ${foId}`);
@@ -504,7 +507,7 @@ app.post(
       const now = new Date();
       const pickup_time = {
         date: now.toISOString().split("T")[0],          // YYYY-MM-DD
-        time: now.toISOString().split("T")[1].slice(0,5) // HH:MM
+        time: now.toISOString().split("T")[1].slice(0, 5) // HH:MM
       };
 
       const metrobiPayload = {
