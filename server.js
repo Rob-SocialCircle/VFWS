@@ -509,7 +509,7 @@ app.post(
         pickup_time,
         pickup_stop: {
           contact: {
-            phone: order.customer?.phone || null,
+            phone: orderResp.order.customer?.phone || null,
             email: "info@vinosite.com",
           },
           name: "Vino Fine Wine & Spirits",
@@ -521,7 +521,7 @@ app.post(
         dropoff_stop: {
           contact: {
             phone: sa.phone || orderResp.order.customer?.phone || orderResp.order.phone,
-            email: orderResp.order.email || orderResp.customer.email,
+            email: orderResp.order.email || orderResp.order.customer.email,
           },
           name: sa.name || `${orderResp.order.customer?.first_name} ${orderResp.order.customer.last_name}` || "Recipient",
           address: `${sa.address1 || ""} ${sa.city || ""} ${sa.province || ""} ${sa.zip || ""}`.trim(),
