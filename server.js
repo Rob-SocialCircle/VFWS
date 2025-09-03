@@ -464,7 +464,7 @@ app.post(
       throw new Error(`Invalid fulfillment order id: ${fulfillmentOrderID}`);
     }
 
-    console.log("Fulfillment ID: ", fulfillmentOrderID, "\n");
+    console.log("Fulfillment ID:", fulfillmentOrderID, "\n");
 
 
     try {
@@ -488,6 +488,75 @@ app.post(
       })
 
       console.log("orderResp\n", JSON.stringify(orderResp, null, 2))
+
+      const usedMetrobi =
+        Array.isArray(orderResp.order.shipping_lines) &&
+        orderResp.order.shipping_lines.some(
+          (sl) =>
+            (sl.title || "").toLowerCase().includes("metrobi") ||
+            (sl.code || "").toUpperCase() === "METROBI"
+        );
+
+      if (!usedMetrobi) return res.sendStatus(200);
+      const sa = orderResp.order.shipping_address || {};
+      const now = new Date();
+      const pickup_time = {
+        date: now.toISOString().split("T")[0], // YYYY-MM-DD
+        time: now.toISOString().split("T")[1].substring(0, 5) // HH:MM
+      };
+
+      const metrobiPayload = {
+        pickup_time,
+        pickup_stop: {
+          contact: {
+            phone: order.customer?.phone || null,
+            email: "info@vinosite.com",
+          },
+          name: "Vino Fine Wine & Spirits",
+          address: "184 Lexington Ave New York NY 10016",
+          address2: "",
+          instructions: "Walk through the front door",
+          business_name: "Vino's Fine Wine & Spirits",
+        },
+        dropoff_stop: {
+          contact: {
+            phone: sa.phone || orderResp.order.customer?.phone || orderResp.order.phone,
+            email: orderResp.order.email || orderResp.customer.email,
+          },
+          name: sa.name || `${orderResp.order.customer?.first_name} ${orderResp.order.customer.last_name}` || "Recipient",
+          address: `${sa.address1 || ""} ${sa.city || ""} ${sa.province || ""} ${sa.zip || ""}`.trim(),
+          address2: sa.address2 || "",
+          instructions: sa.company ? `Deliver to company: ${sa.company}` : "Leave at front door",
+        },
+        settings: {
+          merge_delivery: false,
+          return_to_pickup: false,
+        },
+        size: "suv",
+        job_description: `Deliver Shopify Order #${orderResp.order.name} (${orderResp.order.id})`,
+      };
+
+      // Create delivery with Metrobi
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8000);
+
+      const metrobiResp = await fetch(process.env.METROBI_TEST_CREATE_URL, {
+        method: "POST",
+        headers: {
+          accept: "application/json",
+          "x-api-key": process.env.METROBI_TEST_API_KEY,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(metrobiPayload),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeout);
+
+      if (!metrobiResp.ok) {
+        console.error("Metrobi create failed", await metrobiResp.text());
+        return res.sendStatus(500);
+      }
 
       return res.sendStatus(200);
     } catch (err) {
