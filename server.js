@@ -456,144 +456,38 @@ app.post(
 
     console.log("Payload\n", JSON.stringify(payload, null, 2))
 
+    console.log(`Shop: ${shop}\n`);
+
+    const fulfillmentOrderID = toLegacyId(payload.fulfillment_order.id);
+
+    if (!fulfillmentOrderID) {
+      throw new Error(`Invalid fulfillment order id: ${fulfillmentOrderID}`);
+    }
+
+    console.log("Fulfillment ID: ", fulfillmentOrderID, "\n");
+
+
     try {
-      // Fulfillment Order id is always required, but its shape varies by payload
-      const foGidOrId =
-        payload.fulfillment_order?.id ||
-        payload.id ||
-        payload.fulfillment_order_id;
-
-      const foId = toLegacyId(foGidOrId)
-      if (!foId) {
-        console.warn("[fo/create] No fulfillment order id found in webhook payload");
-        return res.sendStatus(200);
-      }
-
-      // Some payloads include order_id; if missing, fetch the FO to get it
-      let orderId;
-      try {
-        const foResp = await shopRest({
-          shop,
-          accessToken,
-          method: "GET",
-          path: `/fulfillment_orders/${foId}.json`,
-        }).then(r => r.fulfillment_order);
-        orderId = foResp?.fulfillment_order?.order_id;
-      } catch (e) {
-        console.warn(`[fo/create] Could not fetch FO ${foId} to resolve order_id:`, e.message);
-      }
-
-
+      const foResp = await shopRest({
+        shop,
+        accessToken,
+        method: "GET",
+        path: `/fulfillment_orders/${fulfillmentOrderID}.json`,
+      });
+      const fulfillmentOrder = foResp?.fulfillment_order;
+      const orderId = fulfillmentOrder?.order_id;
       if (!orderId) {
-        console.warn(`[fo/create] Missing order_id for FO ${foId}`);
-        return res.sendStatus(200);
+        throw new Error(`Fulfillment order ${fulfillmentOrderID} has no order_id`)
       }
 
-      const order = await shopRest({
+      const orderResp = await shopRest({
         shop,
         accessToken,
         method: "GET",
         path: `/orders/${orderId}.json`,
-      }).then(r => r.order);
+      })
 
-      const usedMetrobi = orderUsedMetrobi(order);
-      if (!usedMetrobi) {
-        console.log(`[fo/create] Order ${orderId} is not Metrobi; skipping`);
-        return res.sendStatus(200);
-      }
-
-      // Build Metrobi payload from the order
-      const sa = order.shipping_address || {};
-      const now = new Date();
-      const pickup_time = {
-        date: now.toISOString().split("T")[0],          // YYYY-MM-DD
-        time: now.toISOString().split("T")[1].slice(0, 5) // HH:MM
-      };
-
-      const metrobiPayload = {
-        pickup_time,
-        pickup_stop: {
-          contact: {
-            phone: "2127256516",
-            email: "info@vinosite.com",
-          },
-          name: "Vino's Fine Wine & Spirits",
-          address: "184 Lexington Ave New York NY 10016",
-          instructions: "Walk through the front door",
-          business_name: "Vino's Fine Wine & Spirits",
-        },
-        dropoff_stop: {
-          contact: {
-            phone: sa.phone || order.customer?.phone || null,
-            email: order.email || null,
-          },
-          name: sa.name || (order.customer
-            ? `${order.customer.first_name || ""} ${order.customer.last_name || ""}`.trim()
-            : "Recipient"),
-          address: `${sa.address1 || ""} ${sa.city || ""} ${sa.province || ""} ${sa.zip || ""}`.trim(),
-          address2: sa.address2 || "",
-          instructions: sa.company ? `Deliver to company: ${sa.company}` : "Leave at front door",
-        },
-        settings: { merge_delivery: false, return_to_pickup: false },
-        size: "suv",
-        job_description: `Deliver Shopify Order #${order.name} (${order.id})`,
-      };
-
-      // Create the Metrobi delivery
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 10000);
-      const metrobiResp = await fetch(process.env.METROBI_TEST_CREATE_URL, {
-        method: "POST",
-        headers: {
-          accept: "application/json",
-          "x-api-key": process.env.METROBI_TEST_API_KEY,
-          "content-type": "application/json",
-        },
-        body: JSON.stringify(metrobiPayload),
-        signal: controller.signal,
-      }).finally(() => clearTimeout(timeout));
-
-      if (!metrobiResp.ok) {
-        const detail = await metrobiResp.text();
-        console.error("[fo/create] Metrobi create failed:", detail);
-        return res.sendStatus(200); // acknowledge to avoid webhook retries
-      }
-
-      const metrobiData = await metrobiResp.json();
-      const metrobiDeliveryId =
-        metrobiData.id || metrobiData.delivery_id || metrobiData.response?.data?.id;
-      const trackingUrl =
-        metrobiData.tracking_url || metrobiData.response?.data?.tracking_url || null;
-      const trackingNumber =
-        metrobiData.tracking_number || (metrobiDeliveryId ? String(metrobiDeliveryId) : null);
-
-      // Create Shopify Fulfillment for THIS Fulfillment Order
-      const fulfillmentPayload = {
-        fulfillment: {
-          line_items_by_fulfillment_order: [{ fulfillment_order_id: foId }],
-          tracking_info: {
-            url: trackingUrl || undefined,
-            number: trackingNumber || undefined,
-            company: "Metrobi",
-          },
-          notify_customer: true,
-        },
-      };
-
-      let fulfillmentId = null;
-      try {
-        const createResp = await shopRest({
-          shop,
-          accessToken,
-          method: "POST",
-          path: "/fulfillments.json",
-          data: fulfillmentPayload,
-        });
-        fulfillmentId = createResp?.fulfillment?.id || null;
-        console.log(`[fo/create] Created fulfillment ${fulfillmentId} for FO ${foId}`);
-      } catch (e) {
-        console.error("[fo/create] Failed to create Shopify fulfillment:", e.message, fulfillmentPayload);
-      }
+      console.log("orderResp\n", JSON.stringify(orderResp, null, 2))
 
       return res.sendStatus(200);
     } catch (err) {
