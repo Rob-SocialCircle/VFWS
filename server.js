@@ -558,6 +558,8 @@ app.post(
         return res.sendStatus(500);
       }
 
+      console.log("Metrobi Delivery Create Response\n", JSON.stringify(metrobiResp, null, 2));
+
       return res.sendStatus(200);
     } catch (err) {
       console.error("[fo/create] handler error", err);
