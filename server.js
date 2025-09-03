@@ -15,6 +15,8 @@ app.use((req, res, next) => {
   }
 });
 
+const fulfilledOrders = new Map();
+
 function toLegacyId(idOrGid) {
   // Accepts number, numeric string, or GID like "gid://shopify/Type/12345"
   if (typeof idOrGid === "number") return String(idOrGid);
@@ -464,6 +466,13 @@ app.post(
       throw new Error(`Invalid fulfillment order id: ${fulfillmentOrderID}`);
     }
 
+    if (fulfilledOrders.has(fulfillmentOrderID)){
+      return res.sendStatus(200)
+    }
+    else {
+      fulfilledOrders.set(fulfillmentOrderID, true)
+    }
+
     console.log("Fulfillment ID:", fulfillmentOrderID, "\n");
 
 
@@ -560,8 +569,8 @@ app.post(
         console.error("Metrobi create failed", await metrobiResp.text());
         return res.sendStatus(500);
       }
-
-      console.log("Metrobi Delivery Create Response\n", JSON.stringify(metrobiResp, null, 2));
+      const deliveryCreateData = await metrobiResp.data();
+      console.log("Metrobi Delivery Create Response\n", JSON.stringify(deliveryCreateData, null, 2));
 
       const lineItems = orderResp.order.line_items;
 
