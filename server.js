@@ -569,7 +569,7 @@ app.post(
         console.error("Metrobi create failed", await metrobiResp.text());
         return res.sendStatus(500);
       }
-      const deliveryCreateData = await metrobiResp.data();
+      const deliveryCreateData = await metrobiResp.json();
       console.log("Metrobi Delivery Create Response\n", JSON.stringify(deliveryCreateData, null, 2));
 
       const lineItems = orderResp.order.line_items;
