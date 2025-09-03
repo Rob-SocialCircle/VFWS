@@ -466,7 +466,7 @@ app.post(
       throw new Error(`Invalid fulfillment order id: ${fulfillmentOrderID}`);
     }
 
-    if (fulfilledOrders.has(fulfillmentOrderID)){
+    if (fulfilledOrders.has(fulfillmentOrderID)) {
       return res.sendStatus(200)
     }
     else {
@@ -572,7 +572,33 @@ app.post(
       const deliveryCreateData = await metrobiResp.json();
       console.log("Metrobi Delivery Create Response\n", JSON.stringify(deliveryCreateData, null, 2));
 
-      const lineItems = orderResp.order.line_items;
+      const fulfillmentPayload = {
+        fulfillment: {
+          line_items_by_fulfillment_order: [
+            { fulfillment_order_id: Number(fulfillmentOrderID) }
+          ],
+          tracking_info: {
+            url: deliveryCreateData.response.data.dropoff_stop.tracking.link,
+            number: deliveryCreateData.response.data.dropoff_stop.tracking_code,
+            company: "Metrobi"
+          },
+          notify_customer: true
+        }
+      };
+
+      console.log("Fulfillment Payload\n". JSON.stringify(fulfillmentPayload, null, 2))
+
+      const fulfillmentResp = await shopRest({
+        shop, 
+        accessToken,
+        method: "POST",
+        path: "/fulfillments.json",
+        data: fulfillmentPayload
+      });
+
+      const fulfillmentData = await fulfillmentResp.json()
+
+      console.log("Fulfillment Data\n", fulfillmentData)
 
       return res.sendStatus(200);
     } catch (err) {
