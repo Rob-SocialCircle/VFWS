@@ -586,7 +586,7 @@ app.post(
         }
       };
 
-      console.log("Fulfillment Payload\n". JSON.stringify(fulfillmentPayload, null, 2))
+      console.log("Fulfillment Payload\n", JSON.stringify(fulfillmentPayload, null, 2))
 
       const fulfillmentResp = await shopRest({
         shop, 
