@@ -596,9 +596,8 @@ app.post(
         data: fulfillmentPayload
       });
 
-      const fulfillmentData = await fulfillmentResp.json()
 
-      console.log("Fulfillment Data\n", fulfillmentData)
+      console.log("Fulfillment Data\n", JSON.stringify(fulfillmentResp, null, 2))
 
       return res.sendStatus(200);
     } catch (err) {
