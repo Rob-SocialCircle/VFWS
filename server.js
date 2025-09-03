@@ -474,6 +474,9 @@ app.post(
         method: "GET",
         path: `/fulfillment_orders/${fulfillmentOrderID}.json`,
       });
+
+      console.log("Full Fulfillment Order\n", JSON.stringify(foResp, null, 2));
+
       const fulfillmentOrder = foResp?.fulfillment_order;
       const orderId = fulfillmentOrder?.order_id;
       if (!orderId) {
@@ -559,6 +562,8 @@ app.post(
       }
 
       console.log("Metrobi Delivery Create Response\n", JSON.stringify(metrobiResp, null, 2));
+
+      const lineItems = orderResp.order.line_items;
 
       return res.sendStatus(200);
     } catch (err) {
