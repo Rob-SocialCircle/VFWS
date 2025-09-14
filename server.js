@@ -47,14 +47,61 @@ function verifyShopifyWebhook(req) {
   }
 }
 
-function orderUsedMetrobi(order) {
-  return Array.isArray(order.shipping_lines) &&
-    order.shipping_lines.some(
-      (sl) =>
-        (sl.title || "").toLowerCase().includes("metrobi") ||
-        (sl.code || "").toUpperCase() === "METROBI"
-    );
+function determinePickupTime() {
+  const pickupTime = new Date();
+  pickupTime.setHours(pickupTime.getHours() + 2);
+  if (pickupTime.getDay() === 0) { //Sunday
+    console.log("Sunday")
+    if (pickupTime.getHours() < 13) {
+      pickupTime.setHours(13)
+      pickupTime.setMinutes(0)
+    }
+    else if (pickupTime.getHours() >= 20) {
+      pickupTime.setDate(pickupTime.getDate() + 1)
+      pickupTime.setHours(13)
+      pickupTime.setMinutes(0)
+    }
+  } 
+  else if (pickupTime.getDay() === 1) { //Monday
+    console.log("Monday")
+    if (pickupTime.getHours() < 13) {
+      pickupTime.setHours(13)
+      pickupTime.setMinutes(0)
+    }
+    else if (pickupTime.getHours() >= 20) {
+      pickupTime.setDate(pickupTime.getDate() + 1)
+      pickupTime.setHours(12)
+      pickupTime.setMinutes(0)
+    }
+  } 
+  else if (pickupTime.getDay() === 6) { //Saturday
+    console.log("saturday")
+    if (pickupTime.getHours() < 12) {
+      pickupTime.setHours(12)
+      pickupTime.setMinutes(0)
+    }
+    else if (pickupTime.getHours() >= 21) {
+      pickupTime.setDate(pickupTime.getDate() + 1)
+      pickupTime.setHours(13)
+      pickupTime.setMinutes(0)
+    }
+  } 
+  else { //Tuesday-Friday
+    console.log("Tues-Fri")
+    if (pickupTime.getHours() < 12) {
+      pickupTime.setHours(12)
+      pickupTime.setMinutes(0)
+    }
+    else if (pickupTime.getHours() >= 21) {
+      pickupTime.setDate(pickupTime.getDate() + 1)
+      pickupTime.setHours(12)
+      pickupTime.setMinutes(0)
+    }
+  }
+  return pickupTime
 }
+
+determinePickupTime()
 
 async function shopRest({ shop, accessToken, method, path, data }) {
   const url = `https://${shop}/admin/api/2024-07/${path.replace(/^\//, "")}`;
@@ -198,8 +245,15 @@ app.post("/carrier_service", async (req, res) => {
     const controller = new AbortController();
     const t = setTimeout(() => controller.abort(), 8000);
 
+    calculatedTime = determinePickupTime();
+
+    const pickup_time = {
+        date: calculatedTime.toISOString().split("T")[0], // YYYY-MM-DD
+        time: calculatedTime.toISOString().split("T")[1].substring(0, 5) // HH:MM
+      };
+
     const metrobiResp = await fetch(
-      "https://delivery-api.metrobi.com/api/v1/deliveryrate",
+      "https://delivery-api.metrobi.com/api/v1/delivery_estimate",
       {
         method: "POST",
         headers: {
@@ -208,9 +262,14 @@ app.post("/carrier_service", async (req, res) => {
           "content-type": "application/json"
         },
         body: JSON.stringify({
+          pickup_time,
           size: 'suv',
-          pickup_stop: { address: pickupAddress },
+          pickup_stop: { address: pickupAddress, name: "Vino Fine Wine & Spirits" },
           dropoff_stop: { address: deliveryAddress },
+          settings: {
+            merge_delivery: false,
+            return_to_pickup: false
+          }
         }),
         signal: controller.signal
       }
@@ -250,7 +309,9 @@ app.post("/carrier_service", async (req, res) => {
       });
     }
 
-    const estimatedCost = metrobiData.response.data.price
+    console.log("Metrobi price before additional fee: ", metrobiData.response.data.price)
+
+    const estimatedCost = metrobiData.response.data.price + 20 // + 20 as instructed by client to cover cost of Metrobi use
 
     if (typeof estimatedCost !== "number") {
       return res.json({
@@ -511,7 +572,7 @@ app.post(
 
       if (!usedMetrobi) return res.sendStatus(200);
       const sa = orderResp.order.shipping_address || {};
-      const now = new Date();
+      const now = determinePickupTime();
       const pickup_time = {
         date: now.toISOString().split("T")[0], // YYYY-MM-DD
         time: now.toISOString().split("T")[1].substring(0, 5) // HH:MM
