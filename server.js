@@ -51,7 +51,6 @@ function determinePickupTime() {
   const pickupTime = new Date();
   pickupTime.setHours(pickupTime.getHours() + 2);
   if (pickupTime.getDay() === 0) { //Sunday
-    console.log("Sunday")
     if (pickupTime.getHours() < 13) {
       pickupTime.setHours(13)
       pickupTime.setMinutes(0)
@@ -63,7 +62,6 @@ function determinePickupTime() {
     }
   } 
   else if (pickupTime.getDay() === 1) { //Monday
-    console.log("Monday")
     if (pickupTime.getHours() < 13) {
       pickupTime.setHours(13)
       pickupTime.setMinutes(0)
@@ -75,7 +73,6 @@ function determinePickupTime() {
     }
   } 
   else if (pickupTime.getDay() === 6) { //Saturday
-    console.log("saturday")
     if (pickupTime.getHours() < 12) {
       pickupTime.setHours(12)
       pickupTime.setMinutes(0)
@@ -87,7 +84,6 @@ function determinePickupTime() {
     }
   } 
   else { //Tuesday-Friday
-    console.log("Tues-Fri")
     if (pickupTime.getHours() < 12) {
       pickupTime.setHours(12)
       pickupTime.setMinutes(0)
@@ -100,8 +96,6 @@ function determinePickupTime() {
   }
   return pickupTime
 }
-
-determinePickupTime()
 
 async function shopRest({ shop, accessToken, method, path, data }) {
   const url = `https://${shop}/admin/api/2024-07/${path.replace(/^\//, "")}`;
@@ -245,7 +239,7 @@ app.post("/carrier_service", async (req, res) => {
     const controller = new AbortController();
     const t = setTimeout(() => controller.abort(), 8000);
 
-    calculatedTime = determinePickupTime();
+    const calculatedTime = determinePickupTime();
 
     const pickup_time = {
         date: calculatedTime.toISOString().split("T")[0], // YYYY-MM-DD
