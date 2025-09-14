@@ -269,6 +269,8 @@ app.post("/carrier_service", async (req, res) => {
       }
     );
 
+    console.log("Metrobi Response\n", metrobiResp)
+
     clearTimeout(t);
 
     if (!metrobiResp.ok) {
