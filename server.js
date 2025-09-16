@@ -246,6 +246,19 @@ app.post("/carrier_service", async (req, res) => {
         time: calculatedTime.toISOString().split("T")[1].substring(0, 5) // HH:MM
       };
 
+    const deliveryEstimateBody = {
+          pickup_time,
+          size: 'suv',
+          pickup_stop: { address: pickupAddress, name: "Vino Fine Wine & Spirits" },
+          dropoff_stop: { address: deliveryAddress },
+          settings: {
+            merge_delivery: false,
+            return_to_pickup: false
+          }
+        }
+
+    console.log(deliveryEstimateBody)
+
     const metrobiResp = await fetch(
       "https://delivery-api.metrobi.com/api/v1/delivery_estimate",
       {
@@ -255,16 +268,7 @@ app.post("/carrier_service", async (req, res) => {
           "x-api-key": `${process.env.METROBI_API_KEY}`,
           "content-type": "application/json"
         },
-        body: JSON.stringify({
-          pickup_time,
-          size: 'suv',
-          pickup_stop: { address: pickupAddress, name: "Vino Fine Wine & Spirits" },
-          dropoff_stop: { address: deliveryAddress },
-          settings: {
-            merge_delivery: false,
-            return_to_pickup: false
-          }
-        }),
+        body: JSON.stringify(deliveryEstimateBody),
         signal: controller.signal
       }
     );
