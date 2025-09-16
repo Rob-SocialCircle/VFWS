@@ -250,7 +250,7 @@ app.post("/carrier_service", async (req, res) => {
           pickup_time,
           size: 'suv',
           pickup_stop: { address: pickupAddress, name: "Vino Fine Wine & Spirits" },
-          dropoff_stop: { address: deliveryAddress },
+          dropoff_stop: { address: deliveryAddress, name: "Customer" },
           settings: {
             merge_delivery: false,
             return_to_pickup: false
