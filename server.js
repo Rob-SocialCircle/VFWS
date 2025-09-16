@@ -609,6 +609,8 @@ app.post(
         job_description: `Deliver Shopify Order #${orderResp.order.name} (${orderResp.order.id})`,
       };
 
+      console.log("Create Delivery Payload:\n", metrobiPayload)
+
       // Create delivery with Metrobi
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 8000);
