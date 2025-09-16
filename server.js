@@ -572,8 +572,7 @@ app.post(
 
       if (!usedMetrobi) return res.sendStatus(200);
       const sa = orderResp.order.shipping_address || {};
-      const now = new Date()
-      //const now = determinePickupTime();
+      const now = determinePickupTime();
       const pickup_time = {
         date: now.toISOString().split("T")[0], // YYYY-MM-DD
         time: now.toISOString().split("T")[1].substring(0, 5) // HH:MM
