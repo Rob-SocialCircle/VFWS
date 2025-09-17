@@ -599,7 +599,7 @@ app.post(
           name: sa.name || `${orderResp.order.customer?.first_name} ${orderResp.order.customer.last_name}` || "Recipient",
           address: `${sa.address1 || ""} ${sa.city || ""} ${sa.province || ""} ${sa.zip || ""}`.trim(),
           address2: sa.address2 || "",
-          instructions: sa.company ? `Deliver to company: ${sa.company}` : "Leave at front door",
+          instructions: orderResp.order.note || "",
         },
         settings: {
           merge_delivery: false,
