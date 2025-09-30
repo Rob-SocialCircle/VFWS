@@ -95,6 +95,7 @@ function determinePickupTime() {
       pickupTime.setMinutes(0)
     }
   }
+  console.log("RETURNED TIME\n", pickupTime)
   return pickupTime
 }
 
