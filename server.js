@@ -61,14 +61,13 @@ function getEasternTime() {
 
   // clone current date, then shift using UTC methods
   const eastern = new Date(now);
-  eastern.setUTCHours(now.getUTCHours() + offsetHours);
-  eastern.setUTCMinutes(now.getUTCMinutes() + offsetMinutes);
+  eastern.setHours(now.getHours() + offsetHours);
 
   return eastern;
 }
 
 function determinePickupTime() {
-  const pickupTime = new Date();
+  const pickupTime = getEasternTime();
   //pickupTime.setHours(pickupTime.getHours() + 2);
   console.log("PICKUP TIME\n", pickupTime)
   if (pickupTime.getDay() === 0) { //Sunday
