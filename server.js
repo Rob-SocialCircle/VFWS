@@ -66,8 +66,27 @@ function getEasternTime() {
   return eastern;
 }
 
+function formatET(date) {
+  // Get ET parts as strings (no timestamp shifting)
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    hour12: false,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).formatToParts(date);
+
+  const obj = Object.fromEntries(parts.map(p => [p.type, p.value]));
+  return {
+    date: `${obj.year}-${obj.month}-${obj.day}`,   // YYYY-MM-DD
+    time: `${obj.hour}:${obj.minute}`,             // HH:MM (ET)
+  };
+}
+
 function determinePickupTime() {
-  const pickupTime = getEasternTime();
+  const pickupTime = new Date();
   //pickupTime.setHours(pickupTime.getHours() + 2);
   console.log("PICKUP TIME\n", pickupTime)
   if (pickupTime.getDay() === 0) { //Sunday
@@ -262,10 +281,7 @@ app.post("/carrier_service", async (req, res) => {
 
     const calculatedTime = determinePickupTime();
 
-    const pickup_time = {
-        date: calculatedTime.toISOString().split("T")[0], // YYYY-MM-DD
-        time: calculatedTime.toISOString().split("T")[1].substring(0, 5) // HH:MM
-      };
+    const pickup_time = formatET(calculatedTime)
 
     const deliveryEstimateBody = {
           pickup_time,
@@ -594,10 +610,7 @@ app.post(
       if (!usedMetrobi) return res.sendStatus(200);
       const sa = orderResp.order.shipping_address || {};
       const now = determinePickupTime();
-      const pickup_time = {
-        date: now.toISOString().split("T")[0], // YYYY-MM-DD
-        time: now.toISOString().split("T")[1].substring(0, 5) // HH:MM
-      };
+      const pickup_time = formatET(now)
 
       const metrobiPayload = {
         pickup_time,
