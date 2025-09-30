@@ -47,8 +47,28 @@ function verifyShopifyWebhook(req) {
   }
 }
 
+function getEasternTime() {
+  const now = new Date();
+
+  // figure out New York offset for this date
+  const options = { timeZone: "America/New_York", timeZoneName: "shortOffset" };
+  const parts = new Intl.DateTimeFormat("en-US", options).formatToParts(now);
+  const tz = parts.find(p => p.type === "timeZoneName").value; // e.g., "GMT-4" or "GMT-5"
+  
+  const match = tz.match(/GMT([+-]\d{1,2})(?::(\d{2}))?/);
+  const offsetHours = parseInt(match[1], 10);
+  const offsetMinutes = match[2] ? parseInt(match[2], 10) : 0;
+
+  // clone current date, then shift using UTC methods
+  const eastern = new Date(now);
+  eastern.setUTCHours(now.getUTCHours() + offsetHours);
+  eastern.setUTCMinutes(now.getUTCMinutes() + offsetMinutes);
+
+  return eastern;
+}
+
 function determinePickupTime() {
-  const pickupTime = new Date();
+  const pickupTime = getEasternTime();
   //pickupTime.setHours(pickupTime.getHours() + 2);
   console.log("PICKUP TIME\n", pickupTime)
   if (pickupTime.getDay() === 0) { //Sunday
