@@ -69,8 +69,10 @@ function getEasternTime() {
 
 function determinePickupTime() {
   const pickupTime = getEasternTime();
+  const testTime = new Date();
   //pickupTime.setHours(pickupTime.getHours() + 2);
   console.log("PICKUP TIME\n", pickupTime)
+  console.log("TEST TIME\n", testTime)
   if (pickupTime.getDay() === 0) { //Sunday
     if (pickupTime.getHours() < 13) {
       pickupTime.setHours(13)
