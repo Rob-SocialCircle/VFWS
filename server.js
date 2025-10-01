@@ -107,7 +107,6 @@ function determinePickupTime() {
       pickupTime.setMinutes(0)
     }
   }
-  pickupTime.setHours(pickupTime.getHours() - getNYOffsetHours())
   console.log("RETURNED TIME\n", pickupTime)
   return pickupTime
 }
