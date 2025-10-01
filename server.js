@@ -74,6 +74,7 @@ function formatNY(date = new Date()) {
 
 function determinePickupTime() {
   const pickupTime = new Date();
+  pickupTime.setHours(pickupTime.getHours() + getNYOffsetHours() + 2) // the 2 is recommended by metrobi to give them time to find driver
   console.log("PICKUP TIME\n", pickupTime)
   // if (pickupTime.getDay() === 0) { //Sunday
   //   if (pickupTime.getHours() < 13) {
@@ -119,6 +120,7 @@ function determinePickupTime() {
   //     pickupTime.setMinutes(0)
   //   }
   // }
+  pickupTime.setHours(pickupTime.getHours() - getNYOffsetHours())
   console.log("RETURNED TIME\n", pickupTime)
   return pickupTime
 }
