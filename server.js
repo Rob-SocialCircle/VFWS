@@ -265,9 +265,12 @@ app.post("/carrier_service", async (req, res) => {
     const controller = new AbortController();
     const t = setTimeout(() => controller.abort(), 8000);
 
-    const calculatedTime = new Date();
+    const calculatedTime = determinePickupTime();
 
-    const pickup_time = formatNY(calculatedTime)
+    const pickup_time = {
+        date: calculatedTime.toISOString().split("T")[0], // YYYY-MM-DD
+        time: calculatedTime.toISOString().split("T")[1].substring(0, 5) // HH:MM
+      };
 
     const deliveryEstimateBody = {
           pickup_time,
@@ -595,8 +598,11 @@ app.post(
 
       if (!usedMetrobi) return res.sendStatus(200);
       const sa = orderResp.order.shipping_address || {};
-      const now = new Date();
-      const pickup_time = formatNY(now);
+      const now = determinePickupTime();
+      const pickup_time = {
+        date: now.toISOString().split("T")[0], // YYYY-MM-DD
+        time: now.toISOString().split("T")[1].substring(0, 5) // HH:MM
+      };
 
       const metrobiPayload = {
         pickup_time,
