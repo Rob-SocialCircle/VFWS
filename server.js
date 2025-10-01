@@ -47,20 +47,9 @@ function verifyShopifyWebhook(req) {
   }
 }
 
-function getNYOffsetHours(date = new Date()) {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/New_York",
-    timeZoneName: "shortOffset",
-  }).formatToParts(date);
-  const tz = parts.find(p => p.type === "timeZoneName")?.value || "GMT-5";
-  const m = tz.match(/GMT([+-]\d{1,2})(?::(\d{2}))?/);
-  const h = m ? parseInt(m[1], 10) : -5;
-  const mm = m && m[2] ? parseInt(m[2], 10) : 0;
-  return h + mm / 60; // typically -4 or -5
-}
-
 function determinePickupTime() {
   const pickupTime = new Date();
+  pickupTime.setHours(pickupTime.getHours()-6)
   console.log("PICKUP TIME\n", pickupTime)
   if (pickupTime.getDay() === 0) { //Sunday
     if (pickupTime.getHours() < 13) {
