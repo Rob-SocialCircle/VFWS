@@ -49,7 +49,7 @@ function verifyShopifyWebhook(req) {
 
 function determinePickupTime() {
   const pickupTime = new Date();
-  pickupTime.setHours(pickupTime.getHours()-4)
+  pickupTime.setHours(pickupTime.getHours()+12)
   console.log("PICKUP TIME\n", pickupTime)
   if (pickupTime.getDay() === 0) { //Sunday
     if (pickupTime.getHours() < 13) {
