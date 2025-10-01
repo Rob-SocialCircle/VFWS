@@ -61,6 +61,7 @@ function getNYOffsetHours(date = new Date()) {
 
 function determinePickupTime() {
   const pickupTime = new Date();
+  pickupTime.setHours(pickupTime.getHours() + getNYOffsetHours())
   console.log("PICKUP TIME\n", pickupTime)
   if (pickupTime.getDay() === 0) { //Sunday
     if (pickupTime.getHours() < 13) {
@@ -106,6 +107,7 @@ function determinePickupTime() {
       pickupTime.setMinutes(0)
     }
   }
+  pickupTime.setHours(pickupTime.getHours() - getNYOffsetHours())
   console.log("RETURNED TIME\n", pickupTime)
   return pickupTime
 }
