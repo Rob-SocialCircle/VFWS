@@ -86,7 +86,7 @@ function formatET(date) {
 }
 
 function determinePickupTime() {
-  const pickupTime = new Date();
+  const pickupTime = formatET(new Date());
   //pickupTime.setHours(pickupTime.getHours() + 2);
   console.log("PICKUP TIME\n", pickupTime)
   if (pickupTime.getDay() === 0) { //Sunday
