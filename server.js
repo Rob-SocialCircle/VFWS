@@ -59,6 +59,19 @@ function getNYOffsetHours(date = new Date()) {
   return h + mm / 60; // usually -4 or -5
 }
 
+function formatNY(date = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/New_York",
+    hour12: false,
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit",
+  }).formatToParts(date).reduce((o,p)=> (o[p.type]=p.value, o), {});
+  return {
+    date: `${parts.year}-${parts.month}-${parts.day}`, // YYYY-MM-DD in NY
+    time: `${parts.hour}:${parts.minute}`,             // HH:MM in NY
+  };
+}
+
 function determinePickupTime() {
   const pickupTime = new Date();
   pickupTime.setHours(pickupTime.getHours() + getNYOffsetHours())
@@ -107,6 +120,7 @@ function determinePickupTime() {
       pickupTime.setMinutes(0)
     }
   }
+  pickupTime.setHours(pickupTime.getHours() - getNYOffsetHours())
   console.log("RETURNED TIME\n", pickupTime)
   return pickupTime
 }
@@ -255,10 +269,7 @@ app.post("/carrier_service", async (req, res) => {
 
     const calculatedTime = determinePickupTime();
 
-    const pickup_time = {
-        date: calculatedTime.toISOString().split("T")[0], // YYYY-MM-DD
-        time: calculatedTime.toISOString().split("T")[1].substring(0, 5) // HH:MM
-      };
+    const pickup_time = formatNY(calculatedTime)
 
     const deliveryEstimateBody = {
           pickup_time,
@@ -587,10 +598,7 @@ app.post(
       if (!usedMetrobi) return res.sendStatus(200);
       const sa = orderResp.order.shipping_address || {};
       const now = determinePickupTime();
-      const pickup_time = {
-        date: now.toISOString().split("T")[0], // YYYY-MM-DD
-        time: now.toISOString().split("T")[1].substring(0, 5) // HH:MM
-      };
+      const pickup_time = formatNY(now);
 
       const metrobiPayload = {
         pickup_time,
