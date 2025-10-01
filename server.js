@@ -265,7 +265,7 @@ app.post("/carrier_service", async (req, res) => {
     const controller = new AbortController();
     const t = setTimeout(() => controller.abort(), 8000);
 
-    const calculatedTime = determinePickupTime();
+    const calculatedTime = new Date();
 
     const pickup_time = formatNY(calculatedTime)
 
@@ -595,7 +595,7 @@ app.post(
 
       if (!usedMetrobi) return res.sendStatus(200);
       const sa = orderResp.order.shipping_address || {};
-      const now = determinePickupTime();
+      const now = new Date();
       const pickup_time = formatNY(now);
 
       const metrobiPayload = {
