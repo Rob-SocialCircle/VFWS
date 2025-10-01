@@ -76,50 +76,50 @@ function determinePickupTime() {
   const pickupTime = new Date();
   pickupTime.setHours(pickupTime.getHours() + getNYOffsetHours() + 2) // the 2 is recommended by metrobi to give them time to find driver
   console.log("PICKUP TIME\n", pickupTime)
-  // if (pickupTime.getDay() === 0) { //Sunday
-  //   if (pickupTime.getHours() < 13) {
-  //     pickupTime.setHours(13)
-  //     pickupTime.setMinutes(0)
-  //   }
-  //   else if (pickupTime.getHours() >= 20) {
-  //     pickupTime.setDate(pickupTime.getDate() + 1)
-  //     pickupTime.setHours(13)
-  //     pickupTime.setMinutes(0)
-  //   }
-  // } 
-  // else if (pickupTime.getDay() === 1) { //Monday
-  //   if (pickupTime.getHours() < 13) {
-  //     pickupTime.setHours(13)
-  //     pickupTime.setMinutes(0)
-  //   }
-  //   else if (pickupTime.getHours() >= 20) {
-  //     pickupTime.setDate(pickupTime.getDate() + 1)
-  //     pickupTime.setHours(12)
-  //     pickupTime.setMinutes(0)
-  //   }
-  // } 
-  // else if (pickupTime.getDay() === 6) { //Saturday
-  //   if (pickupTime.getHours() < 12) {
-  //     pickupTime.setHours(12)
-  //     pickupTime.setMinutes(0)
-  //   }
-  //   else if (pickupTime.getHours() >= 21) {
-  //     pickupTime.setDate(pickupTime.getDate() + 1)
-  //     pickupTime.setHours(13)
-  //     pickupTime.setMinutes(0)
-  //   }
-  // } 
-  // else { //Tuesday-Friday
-  //   if (pickupTime.getHours() < 12) {
-  //     pickupTime.setHours(12)
-  //     pickupTime.setMinutes(0)
-  //   }
-  //   else if (pickupTime.getHours() >= 21) {
-  //     pickupTime.setDate(pickupTime.getDate() + 1)
-  //     pickupTime.setHours(12)
-  //     pickupTime.setMinutes(0)
-  //   }
-  // }
+  if (pickupTime.getDay() === 0) { //Sunday
+    if (pickupTime.getHours() < 13) {
+      pickupTime.setHours(13)
+      pickupTime.setMinutes(0)
+    }
+    else if (pickupTime.getHours() >= 20) {
+      pickupTime.setDate(pickupTime.getDate() + 1)
+      pickupTime.setHours(13)
+      pickupTime.setMinutes(0)
+    }
+  } 
+  else if (pickupTime.getDay() === 1) { //Monday
+    if (pickupTime.getHours() < 13) {
+      pickupTime.setHours(13)
+      pickupTime.setMinutes(0)
+    }
+    else if (pickupTime.getHours() >= 20) {
+      pickupTime.setDate(pickupTime.getDate() + 1)
+      pickupTime.setHours(12)
+      pickupTime.setMinutes(0)
+    }
+  } 
+  else if (pickupTime.getDay() === 6) { //Saturday
+    if (pickupTime.getHours() < 12) {
+      pickupTime.setHours(12)
+      pickupTime.setMinutes(0)
+    }
+    else if (pickupTime.getHours() >= 21) {
+      pickupTime.setDate(pickupTime.getDate() + 1)
+      pickupTime.setHours(13)
+      pickupTime.setMinutes(0)
+    }
+  } 
+  else { //Tuesday-Friday
+    if (pickupTime.getHours() < 12) {
+      pickupTime.setHours(12)
+      pickupTime.setMinutes(0)
+    }
+    else if (pickupTime.getHours() >= 21) {
+      pickupTime.setDate(pickupTime.getDate() + 1)
+      pickupTime.setHours(12)
+      pickupTime.setMinutes(0)
+    }
+  }
   pickupTime.setHours(pickupTime.getHours() - getNYOffsetHours())
   console.log("RETURNED TIME\n", pickupTime)
   return pickupTime
