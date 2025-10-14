@@ -285,12 +285,12 @@ app.post("/carrier_service", async (req, res) => {
     console.log(deliveryEstimateBody)
 
     const metrobiResp = await fetch(
-      "https://delivery-api-test.metrobi.com/api/v1/delivery_estimate",
+      "https://delivery-api.metrobi.com/api/v1/delivery_estimate",
       {
         method: "POST",
         headers: {
           "accept": 'application/json',
-          "x-api-key": `${process.env.METROBI_TEST_API_KEY}`,
+          "x-api-key": `${process.env.METROBI_API_KEY}`,
           "content-type": "application/json"
         },
         body: JSON.stringify(deliveryEstimateBody),
@@ -637,11 +637,11 @@ app.post(
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 8000);
 
-      const metrobiResp = await fetch(process.env.METROBI_TEST_CREATE_URL, {
+      const metrobiResp = await fetch(process.env.METROBI_CREATE_URL, {
         method: "POST",
         headers: {
           accept: "application/json",
-          "x-api-key": process.env.METROBI_TEST_API_KEY,
+          "x-api-key": process.env.METROBI_API_KEY,
           "content-type": "application/json",
         },
         body: JSON.stringify(metrobiPayload),
